@@ -372,4 +372,117 @@ public final class Int256 implements Comparable<Int256> {
 
         return (word & (1L << (index & 63))) != 0L;
     }
+
+    /** 返回去除冗余符号扩展位后的有效位数，不计符号位。 */
+    public int bitLength() {
+        boolean negative = l0 < 0L;
+
+        long a0 = negative ? ~l0 : l0;
+        long a1 = negative ? ~l1 : l1;
+        long a2 = negative ? ~l2 : l2;
+        long a3 = negative ? ~l3 : l3;
+
+        if (a0 != 0L)
+            return 256 - Long.numberOfLeadingZeros(a0);
+        if (a1 != 0L)
+            return 192 - Long.numberOfLeadingZeros(a1);
+        if (a2 != 0L)
+            return 128 - Long.numberOfLeadingZeros(a2);
+        return 64 - Long.numberOfLeadingZeros(a3);
+    }
+
+    /** 返回完整 256-bit 位模式中值为 1 的 bit 数量。 */
+    public int bitCount() {
+        return Long.bitCount(l0)
+                + Long.bitCount(l1)
+                + Long.bitCount(l2)
+                + Long.bitCount(l3);
+    }
+
+    /** 精确转换为 long，超出有符号 64-bit 范围时抛出异常。 */
+    public long toLongExact() {
+        long sign = l3 >> 63;
+
+        if (l0 != sign || l1 != sign || l2 != sign) {
+            throw new ArithmeticException("Int256 out of long range");
+        }
+
+        return l3;
+    }
+
+    /** 转换为 double，按照 IEEE 754 最近偶数规则舍入。 */
+    public double toDouble() {
+        boolean negative = l0 < 0L;
+
+        long a0 = l0;
+        long a1 = l1;
+        long a2 = l2;
+        long a3 = l3;
+
+        // 计算无符号绝对值
+        if (negative) {
+            a3 = -l3;
+            a2 = ~l2 + (l3 == 0L ? 1L : 0L);
+            a1 = ~l1 + ((l3 | l2) == 0L ? 1L : 0L);
+            a0 = ~l0 + ((l3 | l2 | l1) == 0L ? 1L : 0L);
+        }
+
+        if ((a0 | a1 | a2 | a3) == 0L) {
+            return 0.0;
+        }
+
+        long top;
+        long next;
+        long rest;
+        int offset;
+
+        if (a0 != 0L) {
+            top = a0;
+            next = a1;
+            rest = a2 | a3;
+            offset = 192;
+        } else if (a1 != 0L) {
+            top = a1;
+            next = a2;
+            rest = a3;
+            offset = 128;
+        } else if (a2 != 0L) {
+            top = a2;
+            next = a3;
+            rest = 0L;
+            offset = 64;
+        } else {
+            top = a3;
+            next = 0L;
+            rest = 0L;
+            offset = 0;
+        }
+
+        // 将最高有效 bit 对齐至 bit 63
+        int leading = Long.numberOfLeadingZeros(top);
+        long normalized = top << leading;
+
+        if (leading != 0) {
+            normalized |= next >>> (64 - leading);
+        }
+
+        // 提取 53-bit 有效数字
+        long significand = normalized >>> 11;
+
+        // 最近偶数舍入
+        boolean guard = (normalized & (1L << 10)) != 0L;
+        boolean sticky = (normalized & 0x3ffL) != 0L
+                || (next << leading) != 0L
+                || rest != 0L;
+
+        if (guard && (sticky || (significand & 1L) != 0L)) {
+            significand++;
+        }
+
+        double result = Math.scalb(
+                (double) significand, offset + 11 - leading);
+
+        return negative ? -result : result;
+    }
+
 }
