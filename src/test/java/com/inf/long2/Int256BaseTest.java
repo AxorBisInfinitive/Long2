@@ -8,8 +8,25 @@ public class Int256BaseTest {
     @Test
     void testToHexString() {
         Int256 value = new Int256(~1119L);
+        assertEquals("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffba0",
+                value.toHexString());
+    }
+
+    @Test
+    void testNot() {
+        Int256 value1 = new Int256(-2147483649L);
+        Int256 value2 = new Int256(2147483648L);
         assertEquals(
-                value.toHexString(),
-                "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffba0");
+                value1.toHexString(),
+                value2.not().toHexString());
+    }
+
+    @Test
+    void testNotFullWidth() {
+        Int256 value1 = new Int256(0L, -1L, 0L, -1L);
+        Int256 value2 = new Int256(-1L, 0L, -1L, 0L);
+        assertEquals(
+                value1.toHexString(),
+                value2.not().toHexString());
     }
 }

@@ -22,4 +22,8 @@ public final class Int256 {
         return "0x%016x%016x%016x%016x".formatted(
                 l0, l1, l2, l3);
     }
+
+    public Int256 not() {
+        return new Int256(~l0, ~l1, ~l2, ~l3);
+    }
 }
