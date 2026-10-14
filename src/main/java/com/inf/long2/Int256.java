@@ -50,6 +50,8 @@ public final class Int256 {
     public static final Int256 MIN_VALUE = new Int256(
             Long.MIN_VALUE, 0L, 0L, 0L);
 
+    public static final Int256 ZERO = new Int256(0L);
+
     public String toHexString() {
         return "0x%016x%016x%016x%016x".formatted(
                 l0, l1, l2, l3);
@@ -251,5 +253,9 @@ public final class Int256 {
         long r0 = l0 - other.l0 - borrow;
 
         return new Int256(r0, r1, r2, r3);
+    }
+
+    public Int256 negate() {
+        return ZERO.subtract(this);
     }
 }
