@@ -1,3 +1,4 @@
+
 package com.inf.long2;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -18,8 +19,8 @@ public class Int256BaseTest {
         Int256 value1 = new Int256(-2147483649L);
         Int256 value2 = new Int256(2147483648L);
         assertEquals(
-                value1.toHexString(),
-                value2.not().toHexString());
+                value1,
+                value2.not());
     }
 
     @Test
@@ -27,8 +28,8 @@ public class Int256BaseTest {
         Int256 value1 = new Int256(0L, -1L, 0L, -1L);
         Int256 value2 = new Int256(-1L, 0L, -1L, 0L);
         assertEquals(
-                value1.toHexString(),
-                value2.not().toHexString());
+                value1,
+                value2.not());
     }
 
     @Test
@@ -38,8 +39,8 @@ public class Int256BaseTest {
         Int256 expected = new Int256(0L, 0L, -1L, 0L);
 
         assertEquals(
-                expected.toHexString(),
-                value1.and(value2).toHexString());
+                expected,
+                value1.and(value2));
     }
 
     @Test
@@ -49,8 +50,8 @@ public class Int256BaseTest {
         Int256 expected = new Int256(-1L, -1L, -1L, -1L);
 
         assertEquals(
-                expected.toHexString(),
-                value1.or(value2).toHexString());
+                expected,
+                value1.or(value2));
     }
 
     @Test
@@ -60,8 +61,8 @@ public class Int256BaseTest {
         Int256 expected = new Int256(-1L, -1L, 0L, 0L);
 
         assertEquals(
-                expected.toHexString(),
-                value1.xor(value2).toHexString());
+                expected,
+                value1.xor(value2));
     }
 
     @Test
@@ -73,18 +74,18 @@ public class Int256BaseTest {
 
         // ~(a & b) == ~a | ~b
         assertEquals(
-                a.and(b).not().toHexString(),
-                a.not().or(b.not()).toHexString());
+                a.and(b).not(),
+                a.not().or(b.not()));
 
         // ~(a | b) == ~a & ~b
         assertEquals(
-                a.or(b).not().toHexString(),
-                a.not().and(b.not()).toHexString());
+                a.or(b).not(),
+                a.not().and(b.not()));
 
         // a ^ b == (a | b) & ~(a & b)
         assertEquals(
-                a.xor(b).toHexString(),
-                a.or(b).and(a.and(b).not()).toHexString());
+                a.xor(b),
+                a.or(b).and(a.and(b).not()));
     }
 
     @Test
@@ -101,33 +102,33 @@ public class Int256BaseTest {
     @Test
     void testParseHexInt256() {
         assertEquals(
-                new Int256(255L).toHexString(),
-                Int256.parseHexInt256("0xff").toHexString());
+                new Int256(255L),
+                Int256.parseHexInt256("0xff"));
 
         assertEquals(
-                new Int256(0L).toHexString(),
-                Int256.parseHexInt256("0x0").toHexString());
+                new Int256(0L),
+                Int256.parseHexInt256("0x0"));
 
         assertEquals(
-                Int256.MAX_VALUE.toHexString(),
+                Int256.MAX_VALUE,
                 Int256.parseHexInt256(
-                        Int256.MAX_VALUE.toHexString()).toHexString());
+                        Int256.MAX_VALUE.toHexString()));
 
         assertEquals(
-                Int256.MIN_VALUE.toHexString(),
+                Int256.MIN_VALUE,
                 Int256.parseHexInt256(
-                        Int256.MIN_VALUE.toHexString()).toHexString());
+                        Int256.MIN_VALUE.toHexString()));
 
         // 超过 64 位，截断高位
         assertEquals(
-                new Int256(1L).toHexString(),
+                new Int256(1L),
                 Int256.parseHexInt256(
-                        "0x1" + "0".repeat(63) + "1").toHexString());
+                        "0x1" + "0".repeat(63) + "1"));
 
         // 不进行符号扩展
         assertEquals(
-                "0x" + "0".repeat(63) + "f",
-                Int256.parseHexInt256("0xf").toHexString());
+                new Int256(15L),
+                Int256.parseHexInt256("0xf"));
 
         // 非法输入
         assertThrows(NumberFormatException.class,
