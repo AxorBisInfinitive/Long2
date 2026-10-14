@@ -218,4 +218,21 @@ public final class Int256 {
 
         return new Int256(a, b, c, d);
     }
+
+    public Int256 add(Int256 other) {
+        long r3 = l3 + other.l3;
+        long carry = Long.compareUnsigned(r3, l3) < 0 ? 1L : 0L;
+
+        long r2 = l2 + other.l2 + carry;
+        carry = Long.compareUnsigned(r2, l2) < 0
+                || (carry != 0 && r2 == l2) ? 1L : 0L;
+
+        long r1 = l1 + other.l1 + carry;
+        carry = Long.compareUnsigned(r1, l1) < 0
+                || (carry != 0 && r1 == l1) ? 1L : 0L;
+
+        long r0 = l0 + other.l0 + carry;
+
+        return new Int256(r0, r1, r2, r3);
+    }
 }
