@@ -1,5 +1,7 @@
 package com.inf.long2;
 
+import java.util.Objects;
+
 /**
  * 256 bit 定宽整型。
  *
@@ -104,7 +106,7 @@ public final class Int256 {
 
     @Override
     public int hashCode() {
-        return java.util.Objects.hash(l0, l1, l2, l3);
+        return Objects.hash(l0, l1, l2, l3);
     }
 
     public Int256 not() {
