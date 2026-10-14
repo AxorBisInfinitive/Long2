@@ -54,4 +54,20 @@ public final class Int256 {
                 l2 & other.l2,
                 l3 & other.l3);
     }
+
+    public Int256 or(Int256 other) {
+        return new Int256(
+                l0 | other.l0,
+                l1 | other.l1,
+                l2 | other.l2,
+                l3 | other.l3);
+    }
+
+    public Int256 xor(Int256 other) {
+        return new Int256(
+                l0 ^ other.l0,
+                l1 ^ other.l1,
+                l2 ^ other.l2,
+                l3 ^ other.l3);
+    }
 }
