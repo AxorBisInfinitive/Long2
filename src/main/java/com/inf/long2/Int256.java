@@ -46,4 +46,12 @@ public final class Int256 {
     public Int256 not() {
         return new Int256(~l0, ~l1, ~l2, ~l3);
     }
+
+    public Int256 and(Int256 other) {
+        return new Int256(
+                l0 & other.l0,
+                l1 & other.l1,
+                l2 & other.l2,
+                l3 & other.l3);
+    }
 }

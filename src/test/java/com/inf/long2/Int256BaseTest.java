@@ -29,4 +29,15 @@ public class Int256BaseTest {
                 value1.toHexString(),
                 value2.not().toHexString());
     }
+
+    @Test
+    void testAndFullWidth() {
+        Int256 value1 = new Int256(-1L, 0L, -1L, 0L);
+        Int256 value2 = new Int256(0L, -1L, -1L, -1L);
+        Int256 expected = new Int256(0L, 0L, -1L, 0L);
+
+        assertEquals(
+                expected.toHexString(),
+                value1.and(value2).toHexString());
+    }
 }
