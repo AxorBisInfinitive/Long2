@@ -136,4 +136,86 @@ public final class Int256 {
                 l2 ^ other.l2,
                 l3 ^ other.l3);
     }
+
+    /**
+     * bits 为正时左移，为负时算术右移。
+     * 超出 256-bit 范围的位被丢弃，右移时进行符号扩展。
+     */
+    public Int256 shift(int bits) {
+        if (bits == 0) {
+            return this;
+        }
+        if (bits >= 256) {
+            return new Int256(0L);
+        }
+        if (bits <= -256) {
+            return new Int256(l0 >> 63);
+        }
+
+        long a = l0;
+        long b = l1;
+        long c = l2;
+        long d = l3;
+
+        if (bits > 0) {
+            switch (bits >>> 6) {
+                case 1 -> {
+                    a = b;
+                    b = c;
+                    c = d;
+                    d = 0L;
+                }
+                case 2 -> {
+                    a = c;
+                    b = d;
+                    c = d = 0L;
+                }
+                case 3 -> {
+                    a = d;
+                    b = c = d = 0L;
+                }
+            }
+
+            int n = bits & 63;
+            if (n != 0) {
+                return new Int256(
+                        (a << n) | (b >>> (64 - n)),
+                        (b << n) | (c >>> (64 - n)),
+                        (c << n) | (d >>> (64 - n)),
+                        d << n);
+            }
+        } else {
+            int distance = -bits;
+            long sign = a >> 63;
+
+            switch (distance >>> 6) {
+                case 1 -> {
+                    d = c;
+                    c = b;
+                    b = a;
+                    a = sign;
+                }
+                case 2 -> {
+                    d = b;
+                    c = a;
+                    a = b = sign;
+                }
+                case 3 -> {
+                    d = a;
+                    a = b = c = sign;
+                }
+            }
+
+            int n = distance & 63;
+            if (n != 0) {
+                return new Int256(
+                        a >> n,
+                        (b >>> n) | (a << (64 - n)),
+                        (c >>> n) | (b << (64 - n)),
+                        (d >>> n) | (c << (64 - n)));
+            }
+        }
+
+        return new Int256(a, b, c, d);
+    }
 }
