@@ -11,7 +11,7 @@ import java.util.Objects;
  *
  * 按位运算：与、或、非、异或。
  */
-public final class Int256 {
+public final class Int256 implements Comparable<Int256> {
     private final long l0;
     private final long l1;
     private final long l2;
@@ -324,4 +324,52 @@ public final class Int256 {
         return new Int256(r0, r1, r2, r3);
     }
 
+    @Override
+    public int compareTo(Int256 other) {
+        int cmp = Long.compare(l0, other.l0);
+        if (cmp != 0)
+            return cmp;
+
+        cmp = Long.compareUnsigned(l1, other.l1);
+        if (cmp != 0)
+            return cmp;
+
+        cmp = Long.compareUnsigned(l2, other.l2);
+        if (cmp != 0)
+            return cmp;
+
+        return Long.compareUnsigned(l3, other.l3);
+    }
+
+    public int signum() {
+        if (isNegative())
+            return -1;
+        return isZero() ? 0 : 1;
+    }
+
+    public boolean isZero() {
+        return (l0 | l1 | l2 | l3) == 0L;
+    }
+
+    public boolean isNegative() {
+        return l0 < 0L;
+    }
+
+    /**
+     * bit 0 为最低有效位，bit 255 为符号位。
+     */
+    public boolean testBit(int index) {
+        if (index < 0 || index >= 256) {
+            throw new IndexOutOfBoundsException(index);
+        }
+
+        long word = switch (index >>> 6) {
+            case 0 -> l3;
+            case 1 -> l2;
+            case 2 -> l1;
+            default -> l0;
+        };
+
+        return (word & (1L << (index & 63))) != 0L;
+    }
 }
