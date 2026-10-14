@@ -3,13 +3,9 @@ package com.inf.long2;
 import java.util.Objects;
 
 /**
- * 256 bit 定宽整型。
- *
- * 有符号、大端序。
- *
- * 已支持的算术运算：
- *
- * 按位运算：与、或、非、异或。
+ * 不可变的 256-bit 有符号定宽整数，采用 two's complement 表示。
+ * 使用四个 long 按大端序排列，算术运算溢出时按 2^256 回绕。
+ * 支持位运算、移位、加减乘、比较及多种字符串格式转换。
  */
 public final class Int256 implements Comparable<Int256> {
     private final long l0;
