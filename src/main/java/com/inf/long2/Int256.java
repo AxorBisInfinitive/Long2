@@ -11,6 +11,22 @@ public final class Int256 {
     private final long l2;
     private final long l3;
 
+    public long getL0() {
+        return l0;
+    }
+
+    public long getL1() {
+        return l1;
+    }
+
+    public long getL2() {
+        return l2;
+    }
+
+    public long getL3() {
+        return l3;
+    }
+
     public Int256(long l0) {
         this(l0 >> 63, l0 >> 63, l0 >> 63, l0);
     }
