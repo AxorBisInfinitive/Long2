@@ -1,6 +1,7 @@
 package com.inf.long2;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
@@ -95,5 +96,50 @@ public class Int256BaseTest {
         assertEquals(
                 "0x8000000000000000" + "0000000000000000".repeat(3),
                 Int256.MIN_VALUE.toHexString());
+    }
+
+    @Test
+    void testParseHexInt256() {
+        assertEquals(
+                new Int256(255L).toHexString(),
+                Int256.parseHexInt256("0xff").toHexString());
+
+        assertEquals(
+                new Int256(0L).toHexString(),
+                Int256.parseHexInt256("0x0").toHexString());
+
+        assertEquals(
+                Int256.MAX_VALUE.toHexString(),
+                Int256.parseHexInt256(
+                        Int256.MAX_VALUE.toHexString()).toHexString());
+
+        assertEquals(
+                Int256.MIN_VALUE.toHexString(),
+                Int256.parseHexInt256(
+                        Int256.MIN_VALUE.toHexString()).toHexString());
+
+        // 超过 64 位，截断高位
+        assertEquals(
+                new Int256(1L).toHexString(),
+                Int256.parseHexInt256(
+                        "0x1" + "0".repeat(63) + "1").toHexString());
+
+        // 不进行符号扩展
+        assertEquals(
+                "0x" + "0".repeat(63) + "f",
+                Int256.parseHexInt256("0xf").toHexString());
+
+        // 非法输入
+        assertThrows(NumberFormatException.class,
+                () -> Int256.parseHexInt256("0x"));
+
+        assertThrows(NumberFormatException.class,
+                () -> Int256.parseHexInt256("FF"));
+
+        assertThrows(NumberFormatException.class,
+                () -> Int256.parseHexInt256("0xFF"));
+
+        assertThrows(NumberFormatException.class,
+                () -> Int256.parseHexInt256("0x-1"));
     }
 }

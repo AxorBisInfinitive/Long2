@@ -53,6 +53,41 @@ public final class Int256 {
                 l0, l1, l2, l3);
     }
 
+    /**
+     * 必须带有 0x 前缀，必须使用小写字母。
+     * 位数不足时补齐前导零，位数溢出时截断高位。
+     * 按原始位模式解释。位全空时不合法。
+     */
+    public static Int256 parseHexInt256(String value) {
+        if (!value.startsWith("0x")) {
+            throw new NumberFormatException("Missing 0x prefix");
+        }
+
+        String hex = value.substring(2);
+        if (hex.isEmpty()) {
+            throw new NumberFormatException("Empty hexadecimal value");
+        }
+
+        for (int i = 0; i < hex.length(); i++) {
+            char c = hex.charAt(i);
+            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) {
+                throw new NumberFormatException("Invalid hexadecimal digit: " + c);
+            }
+        }
+
+        if (hex.length() > 64) {
+            hex = hex.substring(hex.length() - 64);
+        }
+
+        hex = "0".repeat(64 - hex.length()) + hex;
+
+        return new Int256(
+                Long.parseUnsignedLong(hex.substring(0, 16), 16),
+                Long.parseUnsignedLong(hex.substring(16, 32), 16),
+                Long.parseUnsignedLong(hex.substring(32, 48), 16),
+                Long.parseUnsignedLong(hex.substring(48, 64), 16));
+    }
+
     public Int256 not() {
         return new Int256(~l0, ~l1, ~l2, ~l3);
     }
