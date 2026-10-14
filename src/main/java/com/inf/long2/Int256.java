@@ -485,4 +485,157 @@ public final class Int256 implements Comparable<Int256> {
         return negative ? -result : result;
     }
 
+    /** 返回有符号十进制字符串。 */
+    @Override
+    public String toString() {
+        if (isZero()) {
+            return "0";
+        }
+
+        boolean negative = l0 < 0L;
+        long a0 = l0, a1 = l1, a2 = l2, a3 = l3;
+
+        // 将负数转换为无符号绝对值
+        if (negative) {
+            a3 = -l3;
+            a2 = ~l2 + (l3 == 0L ? 1L : 0L);
+            a1 = ~l1 + ((l3 | l2) == 0L ? 1L : 0L);
+            a0 = ~l0 + ((l3 | l2 | l1) == 0L ? 1L : 0L);
+        }
+
+        final long base = 1_000_000_000L;
+        char[] chars = new char[82];
+        int pos = chars.length;
+
+        do {
+            long rem = 0L;
+
+            // l0
+            long x = (rem << 32) | (a0 >>> 32);
+            long q = x / base;
+            rem = x % base;
+            long high = q << 32;
+
+            x = (rem << 32) | (a0 & 0xffffffffL);
+            q = x / base;
+            rem = x % base;
+            a0 = high | q;
+
+            // l1
+            x = (rem << 32) | (a1 >>> 32);
+            q = x / base;
+            rem = x % base;
+            high = q << 32;
+
+            x = (rem << 32) | (a1 & 0xffffffffL);
+            q = x / base;
+            rem = x % base;
+            a1 = high | q;
+
+            // l2
+            x = (rem << 32) | (a2 >>> 32);
+            q = x / base;
+            rem = x % base;
+            high = q << 32;
+
+            x = (rem << 32) | (a2 & 0xffffffffL);
+            q = x / base;
+            rem = x % base;
+            a2 = high | q;
+
+            // l3
+            x = (rem << 32) | (a3 >>> 32);
+            q = x / base;
+            rem = x % base;
+            high = q << 32;
+
+            x = (rem << 32) | (a3 & 0xffffffffL);
+            q = x / base;
+            rem = x % base;
+            a3 = high | q;
+
+            // 输出 9 位十进制数字
+            for (int i = 0; i < 9; i++) {
+                chars[--pos] = (char) ('0' + rem % 10);
+                rem /= 10;
+            }
+        } while ((a0 | a1 | a2 | a3) != 0L);
+
+        // 去除前导零并补充符号
+        while (chars[pos] == '0') {
+            pos++;
+        }
+        if (negative) {
+            chars[--pos] = '-';
+        }
+
+        return new String(chars, pos, chars.length - pos);
+    }
+
+    /** 解析有符号十进制字符串，超出 256-bit 时回绕。 */
+    public static Int256 parseInt256(String value) {
+        if (value == null || value.isEmpty()) {
+            throw new NumberFormatException("Empty decimal value");
+        }
+
+        int index = 0;
+        boolean negative = false;
+        char first = value.charAt(0);
+
+        if (first == '+' || first == '-') {
+            negative = first == '-';
+            index = 1;
+        }
+
+        if (index == value.length()) {
+            throw new NumberFormatException("Missing decimal digits");
+        }
+
+        long a0 = 0L, a1 = 0L, a2 = 0L, a3 = 0L;
+
+        for (; index < value.length(); index++) {
+            int digit = value.charAt(index) - '0';
+
+            if (digit < 0 || digit > 9) {
+                throw new NumberFormatException(
+                        "Invalid decimal value: " + value);
+            }
+
+            // a3
+            long p = (a3 & 0xffffffffL) * 10L + digit;
+            long q = (a3 >>> 32) * 10L + (p >>> 32);
+            a3 = (q << 32) | (p & 0xffffffffL);
+            long carry = q >>> 32;
+
+            // a2
+            p = (a2 & 0xffffffffL) * 10L + carry;
+            q = (a2 >>> 32) * 10L + (p >>> 32);
+            a2 = (q << 32) | (p & 0xffffffffL);
+            carry = q >>> 32;
+
+            // a1
+            p = (a1 & 0xffffffffL) * 10L + carry;
+            q = (a1 >>> 32) * 10L + (p >>> 32);
+            a1 = (q << 32) | (p & 0xffffffffL);
+            carry = q >>> 32;
+
+            // a0，超出 256-bit 的进位直接丢弃
+            p = (a0 & 0xffffffffL) * 10L + carry;
+            q = (a0 >>> 32) * 10L + (p >>> 32);
+            a0 = (q << 32) | (p & 0xffffffffL);
+        }
+
+        // 对负数进行 256-bit two's complement 取负
+        if (negative) {
+            long b3 = a3, b2 = a2, b1 = a1;
+
+            a3 = -b3;
+            a2 = ~b2 + (b3 == 0L ? 1L : 0L);
+            a1 = ~b1 + ((b3 | b2) == 0L ? 1L : 0L);
+            a0 = ~a0 + ((b3 | b2 | b1) == 0L ? 1L : 0L);
+        }
+
+        return new Int256(a0, a1, a2, a3);
+    }
+
 }
