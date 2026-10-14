@@ -1,7 +1,11 @@
 package com.inf.long2;
 
+/**
+ * 256 bit 定宽整型。
+ *
+ * 有符号、大端序。
+ */
 public final class Int256 {
-    // 大端序
     private final long l0;
     private final long l1;
     private final long l2;
