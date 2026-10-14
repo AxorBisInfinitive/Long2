@@ -88,6 +88,25 @@ public final class Int256 {
                 Long.parseUnsignedLong(hex.substring(48, 64), 16));
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof Int256 other)) {
+            return false;
+        }
+        return l0 == other.l0
+                && l1 == other.l1
+                && l2 == other.l2
+                && l3 == other.l3;
+    }
+
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(l0, l1, l2, l3);
+    }
+
     public Int256 not() {
         return new Int256(~l0, ~l1, ~l2, ~l3);
     }
