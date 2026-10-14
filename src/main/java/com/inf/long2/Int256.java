@@ -42,6 +42,12 @@ public final class Int256 {
         this.l3 = l3;
     }
 
+    public static final Int256 MAX_VALUE = new Int256(
+            Long.MAX_VALUE, -1L, -1L, -1L);
+
+    public static final Int256 MIN_VALUE = new Int256(
+            Long.MIN_VALUE, 0L, 0L, 0L);
+
     public String toHexString() {
         return "0x%016x%016x%016x%016x".formatted(
                 l0, l1, l2, l3);

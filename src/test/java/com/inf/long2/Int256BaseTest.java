@@ -85,4 +85,15 @@ public class Int256BaseTest {
                 a.xor(b).toHexString(),
                 a.or(b).and(a.and(b).not()).toHexString());
     }
+
+    @Test
+    void testMinMaxValue() {
+        assertEquals(
+                "0x7fffffffffffffff" + "ffffffffffffffff".repeat(3),
+                Int256.MAX_VALUE.toHexString());
+
+        assertEquals(
+                "0x8000000000000000" + "0000000000000000".repeat(3),
+                Int256.MIN_VALUE.toHexString());
+    }
 }
