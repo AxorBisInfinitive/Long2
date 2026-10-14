@@ -638,4 +638,88 @@ public final class Int256 implements Comparable<Int256> {
         return new Int256(a0, a1, a2, a3);
     }
 
+    private static final String BASE32_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
+
+    /** 将完整 256-bit 位模式编码为固定 52 字符的小写 Base32 字符串。 */
+    public String toBase32String() {
+        char[] chars = new char[52];
+
+        for (int i = 0; i < 52; i++) {
+            int position = i * 5;
+            int wordIndex = position >>> 6;
+            int offset = position & 63;
+
+            long word = switch (wordIndex) {
+                case 0 -> l0;
+                case 1 -> l1;
+                case 2 -> l2;
+                default -> l3;
+            };
+
+            int digit = (int) ((word << offset) >>> 59);
+
+            // 处理跨越 64-bit 边界的编码组
+            if (offset > 59 && wordIndex < 3) {
+                long next = switch (wordIndex) {
+                    case 0 -> l1;
+                    case 1 -> l2;
+                    default -> l3;
+                };
+
+                digit |= (int) (next >>> (123 - offset));
+            }
+
+            chars[i] = BASE32_ALPHABET.charAt(digit);
+        }
+
+        return new String(chars);
+    }
+
+    /**
+     * 严格解析固定 52 字符的小写 Base32 字符串。
+     * 不接受 padding、非法字符或非零填充位。
+     */
+    public static Int256 parseBase32Int256(String value) {
+        if (value == null || value.length() != 52) {
+            throw new NumberFormatException(
+                    "Base32 value must contain exactly 52 characters");
+        }
+
+        long a0 = 0L, a1 = 0L, a2 = 0L, a3 = 0L;
+
+        // 前 51 个字符包含 255 bit
+        for (int i = 0; i < 51; i++) {
+            char c = value.charAt(i);
+            int digit;
+
+            if (c >= 'a' && c <= 'z') {
+                digit = c - 'a';
+            } else if (c >= '2' && c <= '7') {
+                digit = c - '2' + 26;
+            } else {
+                throw new NumberFormatException(
+                        "Invalid Base32 character at index " + i);
+            }
+
+            a0 = (a0 << 5) | (a1 >>> 59);
+            a1 = (a1 << 5) | (a2 >>> 59);
+            a2 = (a2 << 5) | (a3 >>> 59);
+            a3 = (a3 << 5) | digit;
+        }
+
+        // 最后一个字符只有最高 1 bit 有效
+        char last = value.charAt(51);
+
+        if (last != 'a' && last != 'q') {
+            throw new NumberFormatException(
+                    "Invalid Base32 padding bits");
+        }
+
+        a0 = (a0 << 1) | (a1 >>> 63);
+        a1 = (a1 << 1) | (a2 >>> 63);
+        a2 = (a2 << 1) | (a3 >>> 63);
+        a3 = (a3 << 1) | (last == 'q' ? 1L : 0L);
+
+        return new Int256(a0, a1, a2, a3);
+    }
 }
