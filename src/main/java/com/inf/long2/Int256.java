@@ -235,4 +235,21 @@ public final class Int256 {
 
         return new Int256(r0, r1, r2, r3);
     }
+
+    public Int256 subtract(Int256 other) {
+        long r3 = l3 - other.l3;
+        long borrow = Long.compareUnsigned(l3, other.l3) < 0 ? 1L : 0L;
+
+        long r2 = l2 - other.l2 - borrow;
+        borrow = Long.compareUnsigned(l2, other.l2) < 0
+                || (borrow != 0 && l2 == other.l2) ? 1L : 0L;
+
+        long r1 = l1 - other.l1 - borrow;
+        borrow = Long.compareUnsigned(l1, other.l1) < 0
+                || (borrow != 0 && l1 == other.l1) ? 1L : 0L;
+
+        long r0 = l0 - other.l0 - borrow;
+
+        return new Int256(r0, r1, r2, r3);
+    }
 }
