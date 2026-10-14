@@ -5,4 +5,4 @@
 
 ## 已实现的数据类型
 
-- [Int256](src\main\java\com\inf\long2\Int256.java)
+- [Int256](src/main/java/com/inf/long2/Int256.java)
