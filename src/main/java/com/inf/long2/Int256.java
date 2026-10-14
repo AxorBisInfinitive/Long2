@@ -4,6 +4,10 @@ package com.inf.long2;
  * 256 bit 定宽整型。
  *
  * 有符号、大端序。
+ *
+ * 已支持的算术运算：
+ *
+ * 按位运算：与、或、非、异或。
  */
 public final class Int256 {
     private final long l0;

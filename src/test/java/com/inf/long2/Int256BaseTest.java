@@ -62,4 +62,27 @@ public class Int256BaseTest {
                 expected.toHexString(),
                 value1.xor(value2).toHexString());
     }
+
+    @Test
+    void testFourBitOperation() {
+        Int256 a = new Int256(
+                0x123456789ABCDEFL, -1L, 0L, Long.MIN_VALUE);
+        Int256 b = new Int256(
+                -1L, 0x123456789ABCDEFL, Long.MAX_VALUE, 0L);
+
+        // ~(a & b) == ~a | ~b
+        assertEquals(
+                a.and(b).not().toHexString(),
+                a.not().or(b.not()).toHexString());
+
+        // ~(a | b) == ~a & ~b
+        assertEquals(
+                a.or(b).not().toHexString(),
+                a.not().and(b.not()).toHexString());
+
+        // a ^ b == (a | b) & ~(a & b)
+        assertEquals(
+                a.xor(b).toHexString(),
+                a.or(b).and(a.and(b).not()).toHexString());
+    }
 }
