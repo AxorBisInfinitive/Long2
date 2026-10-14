@@ -258,4 +258,70 @@ public final class Int256 {
     public Int256 negate() {
         return ZERO.subtract(this);
     }
+
+    public Int256 multiply(Int256 other) {
+        long r3 = l3 * other.l3;
+
+        // 第二个 64-bit
+        long r2 = Math.unsignedMultiplyHigh(l3, other.l3);
+        long carry = 0L;
+        long v = l3 * other.l2;
+        long t = r2 + v;
+        if (Long.compareUnsigned(t, r2) < 0)
+            carry++;
+        r2 = t;
+
+        v = l2 * other.l3;
+        t = r2 + v;
+        if (Long.compareUnsigned(t, r2) < 0)
+            carry++;
+        r2 = t;
+
+        // 第三个 64-bit
+        long r1 = carry;
+        carry = 0L;
+
+        v = Math.unsignedMultiplyHigh(l3, other.l2);
+        t = r1 + v;
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+
+        v = Math.unsignedMultiplyHigh(l2, other.l3);
+        t = r1 + v;
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+
+        v = l3 * other.l1;
+        t = r1 + v;
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+
+        v = l2 * other.l2;
+        t = r1 + v;
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+
+        v = l1 * other.l3;
+        t = r1 + v;
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+
+        // 最高 64-bit，最终进位直接丢弃
+        long r0 = carry
+                + Math.unsignedMultiplyHigh(l3, other.l1)
+                + Math.unsignedMultiplyHigh(l2, other.l2)
+                + Math.unsignedMultiplyHigh(l1, other.l3)
+                + l3 * other.l0
+                + l2 * other.l1
+                + l1 * other.l2
+                + l0 * other.l3;
+
+        return new Int256(r0, r1, r2, r3);
+    }
+
 }
