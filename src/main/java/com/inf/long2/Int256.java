@@ -40,6 +40,79 @@ public final class Int256 implements Comparable<Int256> {
         this.l3 = l3;
     }
 
+    /**
+     * 将 double 转换为 256-bit 有符号整数，小数向零截断。
+     * 有限值溢出时回绕，NaN 转为零，Infinity 转为对应极值。
+     */
+    public Int256(double value) {
+        long raw = Double.doubleToRawLongBits(value);
+        int exponent = (int) ((raw >>> 52) & 0x7ffL);
+        long fraction = raw & 0x000f_ffff_ffff_ffffL;
+        boolean negative = raw < 0L;
+
+        long a0 = 0L, a1 = 0L, a2 = 0L, a3 = 0L;
+
+        if (exponent == 0x7ff) {
+            // NaN -> 0，Infinity -> 对应极值
+            if (fraction == 0L) {
+                if (negative) {
+                    a0 = Long.MIN_VALUE;
+                } else {
+                    a0 = Long.MAX_VALUE;
+                    a1 = a2 = a3 = -1L;
+                }
+            }
+        } else if (exponent >= 1023) {
+            // Normal double 的 53-bit significand
+            long significand = (1L << 52) | fraction;
+            int e = exponent - 1023;
+
+            if (e <= 52) {
+                // 向零截断小数部分
+                a3 = significand >>> (52 - e);
+            } else {
+                int shift = e - 52;
+
+                // 超过 256-bit 的部分直接丢弃
+                if (shift < 256) {
+                    int n = shift & 63;
+                    long low = significand << n;
+                    long high = n == 0
+                            ? 0L
+                            : significand >>> (64 - n);
+
+                    switch (shift >>> 6) {
+                        case 0 -> {
+                            a3 = low;
+                            a2 = high;
+                        }
+                        case 1 -> {
+                            a2 = low;
+                            a1 = high;
+                        }
+                        case 2 -> {
+                            a1 = low;
+                            a0 = high;
+                        }
+                        case 3 -> a0 = low;
+                    }
+                }
+            }
+
+            // 对负数进行 256-bit two's complement 取负
+            if (negative) {
+                long b3 = a3, b2 = a2, b1 = a1;
+
+                a3 = -b3;
+                a2 = ~b2 + (b3 == 0L ? 1L : 0L);
+                a1 = ~b1 + ((b3 | b2) == 0L ? 1L : 0L);
+                a0 = ~a0 + ((b3 | b2 | b1) == 0L ? 1L : 0L);
+            }
+        }
+
+        this(a0, a1, a2, a3);
+    }
+
     public static final Int256 MAX_VALUE = new Int256(
             Long.MAX_VALUE, -1L, -1L, -1L);
 
