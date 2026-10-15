@@ -177,7 +177,12 @@ public final class Int256 implements Comparable<Int256> {
 
     @Override
     public int hashCode() {
-        return Objects.hash(l0, l1, l2, l3);
+        int h = 1;
+        h = 31 * h + Long.hashCode(l0);
+        h = 31 * h + Long.hashCode(l1);
+        h = 31 * h + Long.hashCode(l2);
+        h = 31 * h + Long.hashCode(l3);
+        return h;
     }
 
     public Int256 not() {
