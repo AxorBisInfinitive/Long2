@@ -1,7 +1,5 @@
 package com.inf.long2;
 
-import java.util.Objects;
-
 /**
  * 不可变的 256-bit 有符号定宽整数，采用 two's complement 表示。
  * 使用四个 long 按大端序排列，算术运算溢出时按 2^256 回绕。
