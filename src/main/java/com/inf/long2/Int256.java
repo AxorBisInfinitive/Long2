@@ -29,8 +29,8 @@ public final class Int256 implements Comparable<Int256> {
         return l3;
     }
 
-    public Int256(long l0) {
-        this(l0 >> 63, l0 >> 63, l0 >> 63, l0);
+    public Int256(long l3) {
+        this(l3 >> 63, l3 >> 63, l3 >> 63, l3);
     }
 
     public Int256(long l0, long l1, long l2, long l3) {
