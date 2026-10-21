@@ -25,6 +25,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.Elements.Origin;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 
@@ -34,8 +35,11 @@ public final class StaticMethodImplementsCheckProcessor
 
     private static final String ANNOTATION_NAME = "com.inf.long2.util.annotations.StaticMethodImplementsCheck";
 
+    private static final String HAVE_TO_IMPLEMENTS_ANNOTATION_NAME = "com.inf.long2.util.annotations.HaveToImplements";
+
     private final Set<String> checkedImplementations = new HashSet<>();
     private final Set<String> reportedInvalidContracts = new HashSet<>();
+    private final Set<String> reportedInvalidInstanceContracts = new HashSet<>();
 
     private Types types;
     private Elements elements;
@@ -77,6 +81,8 @@ public final class StaticMethodImplementsCheckProcessor
                 && type.getKind() != ElementKind.INTERFACE) {
             reportInvalidContractType(type);
         }
+
+        validateAnnotatedInstanceMethods(type);
 
         if (isConcreteType(type)) {
             String name = type.getQualifiedName().toString();
@@ -139,8 +145,22 @@ public final class StaticMethodImplementsCheckProcessor
                 }
             }
 
+            checkHaveToImplementsContracts(parent, implementation);
             collectContracts(parentType, implementation, visitedTypes);
         }
+    }
+
+    private boolean hasAnnotation(Element element, String qualifiedName) {
+        for (AnnotationMirror annotation : element.getAnnotationMirrors()) {
+            Element annotationElement = annotation.getAnnotationType().asElement();
+
+            if (annotationElement instanceof TypeElement annotationType
+                    && annotationType.getQualifiedName().contentEquals(qualifiedName)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private boolean hasContractAnnotation(TypeElement type) {
@@ -182,6 +202,155 @@ public final class StaticMethodImplementsCheckProcessor
                 type);
     }
 
+    /*
+     * @HaveToImplements defines an instance-method contract on an interface.
+     * Validate declaration-site usage even if no implementation currently
+     * references the interface.
+     */
+    private void validateAnnotatedInstanceMethods(TypeElement owner) {
+        for (Element element : owner.getEnclosedElements()) {
+            if (element.getKind() != ElementKind.METHOD) {
+                continue;
+            }
+
+            ExecutableElement method = (ExecutableElement) element;
+            if (hasAnnotation(method, HAVE_TO_IMPLEMENTS_ANNOTATION_NAME)) {
+                isValidInstanceContract(method);
+            }
+        }
+    }
+
+    private boolean isValidInstanceContract(ExecutableElement method) {
+        Element enclosing = method.getEnclosingElement();
+        String key = methodKey(method);
+
+        if (!(enclosing instanceof TypeElement owner)
+                || owner.getKind() != ElementKind.INTERFACE) {
+            reportInvalidInstanceContract(
+                    method,
+                    key,
+                    "the annotated method must be declared in an interface");
+            return false;
+        }
+
+        Set<Modifier> modifiers = method.getModifiers();
+
+        if (modifiers.contains(Modifier.STATIC)) {
+            reportInvalidInstanceContract(
+                    method,
+                    key,
+                    "static interface methods cannot define instance-method contracts");
+            return false;
+        }
+
+        if (modifiers.contains(Modifier.PRIVATE)) {
+            reportInvalidInstanceContract(
+                    method,
+                    key,
+                    "private interface methods cannot define instance-method contracts");
+            return false;
+        }
+
+        return true;
+    }
+
+    private void reportInvalidInstanceContract(
+            ExecutableElement method,
+            String key,
+            String reason) {
+
+        if (!reportedInvalidInstanceContracts.add(key)) {
+            return;
+        }
+
+        processingEnv.getMessager().printMessage(
+                Diagnostic.Kind.ERROR,
+                "@" + HAVE_TO_IMPLEMENTS_ANNOTATION_NAME
+                        + " may only annotate non-static, non-private instance "
+                        + "methods declared in interfaces; " + reason
+                        + ": " + method,
+                method);
+    }
+
+    private String methodKey(ExecutableElement method) {
+        Element enclosing = method.getEnclosingElement();
+        String owner = enclosing instanceof TypeElement type
+                ? type.getQualifiedName().toString()
+                : enclosing.toString();
+
+        return owner + "#" + method;
+    }
+
+    private void checkHaveToImplementsContracts(
+            TypeElement parent,
+            TypeElement implementation) {
+
+        for (Element element : parent.getEnclosedElements()) {
+            if (element.getKind() != ElementKind.METHOD) {
+                continue;
+            }
+
+            ExecutableElement required = (ExecutableElement) element;
+            if (!hasAnnotation(required, HAVE_TO_IMPLEMENTS_ANNOTATION_NAME)) {
+                continue;
+            }
+
+            // Validate annotations found on dependency types too, not just
+            // annotations declared in source files of the current round.
+            if (!isValidInstanceContract(required)) {
+                continue;
+            }
+
+            if (parent.getKind() != ElementKind.INTERFACE) {
+                continue;
+            }
+
+            if (!hasExplicitInstanceImplementation(required, implementation)) {
+                processingEnv.getMessager().printMessage(
+                        Diagnostic.Kind.ERROR,
+                        "Class " + implementation.getQualifiedName()
+                                + " must explicitly declare an instance method "
+                                + "overriding: "
+                                + signature(required, parent, implementation, false)
+                                + " (contract: "
+                                + parent.getQualifiedName() + ")",
+                        implementation);
+            }
+        }
+    }
+
+    private boolean hasExplicitInstanceImplementation(
+            ExecutableElement required,
+            TypeElement implementation) {
+
+        for (Element element : implementation.getEnclosedElements()) {
+            if (element.getKind() != ElementKind.METHOD) {
+                continue;
+            }
+
+            ExecutableElement actual = (ExecutableElement) element;
+
+            // Only explicitly declared methods count. Inherited, mandated,
+            // and synthetic methods cannot satisfy this contract.
+            if (elements.getOrigin(actual) != Origin.EXPLICIT) {
+                continue;
+            }
+
+            Set<Modifier> modifiers = actual.getModifiers();
+            if (!modifiers.contains(Modifier.PUBLIC)
+                    || modifiers.contains(Modifier.STATIC)
+                    || modifiers.contains(Modifier.PRIVATE)) {
+                continue;
+            }
+
+            if (elements.overrides(actual, required, implementation)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private void checkContract(
             TypeElement contract,
             TypeElement implementation) {
@@ -206,7 +375,7 @@ public final class StaticMethodImplementsCheckProcessor
                         Diagnostic.Kind.ERROR,
                         "Class " + implementation.getQualifiedName()
                                 + " must declare: "
-                                + signature(required, contract, implementation)
+                                + signature(required, contract, implementation, true)
                                 + " (contract: "
                                 + contract.getQualifiedName() + ")",
                         implementation);
@@ -529,9 +698,13 @@ public final class StaticMethodImplementsCheckProcessor
     private String signature(
             ExecutableElement method,
             TypeElement contract,
-            TypeElement implementation) {
+            TypeElement implementation,
+            boolean staticMethod) {
 
-        StringBuilder result = new StringBuilder("public static ");
+        StringBuilder result = new StringBuilder("public ");
+        if (staticMethod) {
+            result.append("static ");
+        }
 
         String typeParameters = formatTypeParameters(method, contract, implementation);
 
