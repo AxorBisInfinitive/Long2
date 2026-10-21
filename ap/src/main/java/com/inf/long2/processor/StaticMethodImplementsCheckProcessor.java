@@ -29,7 +29,7 @@ import javax.tools.Diagnostic;
 public final class StaticMethodImplementsCheckProcessor
         extends AbstractProcessor {
 
-    private static final String ANNOTATION = "com.inf.long2.StaticMethodImplementsCheck";
+    private static final String ANNOTATION = "com.inf.long2.util.annotations.StaticMethodImplementsCheck";
 
     private final Set<String> checked = new HashSet<>();
 

@@ -1,5 +1,4 @@
-
-package com.inf.long2;
+package com.inf.long2.util.annotations;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
