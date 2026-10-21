@@ -52,7 +52,8 @@
                         </path>
                     </annotationProcessorPaths>
                     <annotationProcessors>
-                        <annotationProcessor>com.inf.long2.processor.IntStaticContractProcessor</annotationProcessor>
+                        <annotationProcessor>
+                            com.inf.long2.processor.StaticMethodImplementsCheckProcessor</annotationProcessor>
                     </annotationProcessors>
                 </configuration>
             </plugin>
