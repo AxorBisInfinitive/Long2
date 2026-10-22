@@ -1,4 +1,4 @@
-package com.inf.long2;
+package com.inf.long2.ints.int256;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
