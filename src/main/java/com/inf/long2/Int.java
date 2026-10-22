@@ -1,3 +1,4 @@
+
 package com.inf.long2;
 
 import com.inf.long2.util.annotations.HaveToImplements;
@@ -64,25 +65,25 @@ public interface Int<T extends Int<T>> extends Comparable<T> {
     @HaveToImplements
     public int hashCode();
 
-    public Int<?> and(Int<?> other);
+    public T and(T other);
 
-    public Int<?> or(Int<?> other);
+    public T or(T other);
 
-    public Int<?> not();
+    public T not();
 
-    public Int<?> xor(Int<?> other);
+    public T xor(T other);
 
-    public Int<?> shift(int bits);
+    public T shift(int bits);
 
-    public Int<?> add(Int<?> other);
+    public T add(T other);
 
-    public Int<?> subtract(Int<?> other);
+    public T subtract(T other);
 
-    public Int<?> negate();
+    public T negate();
 
-    public Int<?> successor();
+    public T successor();
 
-    public Int<?> multiply(Int<?> other);
+    public T multiply(T other);
 
     public int signum();
 
