@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.inf.long2.ints.Int256;
+
 public class Int256Base1Test {
     @Test
     void testCompareTo() {

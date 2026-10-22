@@ -7,6 +7,8 @@ import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 
+import com.inf.long2.ints.Int256;
+
 public class Int256MultiplyTest {
 
     @Test

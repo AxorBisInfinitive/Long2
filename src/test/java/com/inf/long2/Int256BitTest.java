@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
+import com.inf.long2.ints.Int256;
+
 public class Int256BitTest {
 
     @Test

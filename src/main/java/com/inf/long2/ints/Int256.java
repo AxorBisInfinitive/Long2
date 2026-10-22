@@ -1,4 +1,6 @@
-package com.inf.long2;
+package com.inf.long2.ints;
+
+import com.inf.long2.Int;
 
 /**
  * 不可变的 256-bit 有符号定宽整数，采用 two's complement 表示。
