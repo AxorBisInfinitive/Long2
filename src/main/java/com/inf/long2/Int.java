@@ -3,12 +3,100 @@ package com.inf.long2;
 import com.inf.long2.util.annotations.HaveToImplements;
 import com.inf.long2.util.annotations.StaticMethodImplementsCheck;
 
+/**
+ * Big-endian Integer
+ *
+ * @param <T>
+ */
 @StaticMethodImplementsCheck
-public interface Int<T extends Int<T>> {
+public interface Int<T extends Int<T>> extends Comparable<T> {
+
+    public static Int<?> MAX_VALUE() {
+        return null;
+    };
+
+    public static Int<?> MIN_VALUE() {
+        return null;
+    };
+
+    public static Int<?> ZERO() {
+        return null;
+    };
+
+    public static Int<?> ONE() {
+        return null;
+    };
+
+    // 从 index = -1 的 long 构造整型。
     public static Int<?> of(long last) {
         return null;
     }
 
+    // 从所有 long 构成的数组构造整型。宽度不符时应抛出异常。
+    public static Int<?> of(long[] longs) {
+        return null;
+    }
+
+    // 从 double 构造整型。
+    public static Int<?> of(double value) {
+        return null;
+    }
+
+    /** 转换为 double，按照 IEEE 754 最近偶数规则舍入。 */
+    public double toDouble();
+
     @HaveToImplements
     public String toString();
+
+    public static Int<?> parseInt(String value) {
+        return null;
+    }
+
+    public String toHexString();
+
+    public static Int<?> parseHexInt(String value) {
+        return null;
+    }
+
+    @HaveToImplements
+    public boolean equals(Object obj);
+
+    @HaveToImplements
+    public int hashCode();
+
+    public Int<?> and(Int<?> other);
+
+    public Int<?> or(Int<?> other);
+
+    public Int<?> not();
+
+    public Int<?> xor(Int<?> other);
+
+    public Int<?> shift(int bits);
+
+    public Int<?> add(Int<?> other);
+
+    public Int<?> subtract(Int<?> other);
+
+    public Int<?> negate();
+
+    public Int<?> successor();
+
+    public Int<?> multiply(Int<?> other);
+
+    public int signum();
+
+    public boolean isZero();
+
+    public boolean isNegative();
+
+    public long getLong(int index);
+
+    public boolean testBit(int index);
+
+    /** 返回去除符号扩展位后的有效位数。 */
+    public int bitLength();
+
+    /** 返回完整位模式中值为 true 的 bit 数量。 */
+    public int bitCount();
 }
