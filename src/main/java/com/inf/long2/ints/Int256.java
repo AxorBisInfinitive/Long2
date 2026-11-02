@@ -2,6 +2,7 @@ package com.inf.long2.ints;
 
 import java.util.Objects;
 
+import com.inf.long2.Binary;
 import com.inf.long2.Int;
 
 /**
@@ -9,6 +10,8 @@ import com.inf.long2.Int;
  * {@code l0} 为最高组，包含符号位；{@code l3} 为最低组。
  */
 public final class Int256 implements Int<Int256> {
+    public static final Format FORMAT = new Format(256);
+
     private final long l0;
     private final long l1;
     private final long l2;
@@ -197,6 +200,77 @@ public final class Int256 implements Int<Int256> {
      */
     public static Int256 of(double value) {
         return new Int256(value);
+    }
+
+    public static Int256 of(Int<?> value) {
+        Objects.requireNonNull(value);
+        if (value instanceof Int256 same) {
+            return same;
+        }
+        int groups = value.format().bitWidth() / 64;
+        long sign = value.isNegative() ? -1L : 0L;
+        return new Int256(groups >= 4 ? value.getLong(groups - 4) : sign,
+                groups >= 3 ? value.getLong(groups - 3) : sign,
+                groups >= 2 ? value.getLong(groups - 2) : sign, value.getLong(groups - 1));
+    }
+
+    public static Int256 of(Binary<?> value) {
+        Objects.requireNonNull(value);
+        if (value.isNaN() || value.isZero()) {
+            return ZERO;
+        }
+        boolean negative = value.signBit();
+        if (value.isInfinite()) {
+            return negative ? MIN_VALUE : MAX_VALUE;
+        }
+        // Binary 的 emin 不大于零，因此次正规数的绝对值严格小于一。
+        if (!value.isNormal()) {
+            return ZERO;
+        }
+        int precision = value.format().precision();
+        long scale = value.scaleExponent();
+        long exponent = scale + precision - 1L;
+        if (exponent < 0) {
+            return ZERO;
+        }
+        // 正常数的实际指数由 p 和 q 确定，负的 2^255 恰好为最小值。
+        if (exponent >= 255) {
+            return negative ? MIN_VALUE : MAX_VALUE;
+        }
+        int groups = (int) ((precision + 63L) / 64);
+        long[] magnitude = new long[4];
+        for (int group = 0; group < groups; group++) {
+            long wordScale = scale + (groups - 1L - group) * 64;
+            if (wordScale <= -64) {
+                break;
+            }
+            long word = value.getSignificandLong(group);
+            if (word == 0) {
+                continue;
+            }
+            if (wordScale < 0) {
+                magnitude[0] |= word >>> (int) -wordScale;
+            } else {
+                int index = (int) (wordScale / 64), bits = (int) (wordScale & 63);
+                magnitude[index] |= word << bits;
+                if (bits != 0 && index + 1 < magnitude.length) {
+                    magnitude[index + 1] |= word >>> (64 - bits);
+                }
+            }
+        }
+        long a3 = magnitude[0], a2 = magnitude[1], a1 = magnitude[2], a0 = magnitude[3];
+        if (negative) {
+            a3 = -a3;
+            a2 = ~a2 + (a3 == 0 ? 1 : 0);
+            a1 = ~a1 + ((a3 | a2) == 0 ? 1 : 0);
+            a0 = ~a0 + ((a3 | a2 | a1) == 0 ? 1 : 0);
+        }
+        return new Int256(a0, a1, a2, a3);
+    }
+
+    @Override
+    public Format format() {
+        return FORMAT;
     }
 
     @Override

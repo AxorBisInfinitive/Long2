@@ -227,6 +227,7 @@ final class Binary256CompatibilityFixtures {
         }
         return (Int<?>) Proxy.newProxyInstance(Int.class.getClassLoader(), new Class<?>[] {Int.class},
                 (proxy, method, arguments) -> switch (method.getName()) {
+                    case "format" -> new Int.Format(width);
                     case "isNegative" -> signed.signum() < 0;
                     case "isZero" -> signed.signum() == 0;
                     case "signum" -> signed.signum();

@@ -17,6 +17,7 @@ import com.inf.long2.Int;
 
 class IntContractTest extends ProcessorTestSupport {
     private static final String DECLARATIONS = """
+            public static final com.inf.long2.Int.Format FORMAT = null;
             public static final Target ZERO = null;
             public static final Target ONE = null;
             public static final Target MAX_VALUE = null;
@@ -25,6 +26,8 @@ class IntContractTest extends ProcessorTestSupport {
             public static Target of(double value) { return null; }
             public static Target of(long[] value) { return null; }
             public static Target of(byte[] value) { return null; }
+            public static Target of(com.inf.long2.Int<?> value) { return null; }
+            public static Target of(com.inf.long2.Binary<?> value) { return null; }
             public static Target parseInt(java.lang.String value) { return null; }
             public static Target parseHexInt(java.lang.String value) { return null; }
             public static boolean isValid(java.lang.String value) { return false; }
@@ -39,6 +42,9 @@ class IntContractTest extends ProcessorTestSupport {
                     static byte[] encode(com.inf.long2.Int<?> value) { return value.toBytes(); }
                     static boolean decimal(String value) { return Target.isValid(value); }
                     static boolean hex(String value) { return Target.isHexValid(value); }
+                    static com.inf.long2.Int.Format format(com.inf.long2.Int<?> value) { return value.format(); }
+                    static Target integer(com.inf.long2.Int<?> value) { return Target.of(value); }
+                    static Target binary(com.inf.long2.Binary<?> value) { return Target.of(value); }
                 }
                 """);
     }
@@ -87,6 +93,67 @@ class IntContractTest extends ProcessorTestSupport {
         Compilation result = compile(fixture(DECLARATIONS, "toBytes"));
         assertFalse(result.success(), result.messages());
         assertTrue(result.messages().contains("toBytes()"), result.messages());
+    }
+
+    @Test
+    void requiresTheFormatInstanceMethod() throws IOException {
+        Compilation result = compile(fixture(DECLARATIONS, "format"));
+        assertFalse(result.success(), result.messages());
+        assertTrue(result.messages().contains("format()"), result.messages());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"missing", "wrongType", "inherited"})
+    void requiresTheDirectFormatConstant(String variant) throws IOException {
+        String declaration = "public static final com.inf.long2.Int.Format FORMAT = null;";
+        String replacement = variant.equals("wrongType") ? "public static final Object FORMAT = null;" : "";
+        String source = fixture(DECLARATIONS.replace(declaration, replacement), "");
+        if (variant.equals("inherited")) {
+            source = "class Base { " + declaration + " }\n"
+                    + source.replace("class Target implements", "class Target extends Base implements");
+        }
+        Compilation result = compile(source);
+        assertFalse(result.success(), result.messages());
+        assertTrue(result.messages().contains("public static com.inf.long2.Int.Format FORMAT"), result.messages());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"com.inf.long2.Int<?>", "com.inf.long2.Binary<?>"})
+    void requiresDirectInterfaceSourceFactories(String sourceType) throws IOException {
+        String declaration = "public static Target of(" + sourceType + " value) { return null; }";
+        Compilation missing = compile(fixture(DECLARATIONS.replace(declaration, ""), ""));
+        assertMissingFactory(missing, sourceType);
+        Compilation inherited = compile("class Base { " + declaration + " }\n"
+                + fixture(DECLARATIONS.replace(declaration, ""), "")
+                        .replace("class Target implements", "class Target extends Base implements"));
+        assertMissingFactory(inherited, sourceType);
+        Compilation wrongReturn = compile(fixture(DECLARATIONS.replace(declaration,
+                declaration.replace("Target of(", "com.inf.long2.Int<?> of(")), ""));
+        assertMissingFactory(wrongReturn, sourceType);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"Target", "Object", "com.inf.long2.Int", "com.inf.long2.Int<Target>",
+            "com.inf.long2.ints.Int256"})
+    void preservesTheCompleteIntegerSourceInterface(String sourceType) throws IOException {
+        Compilation result = compile(fixture(DECLARATIONS.replace("of(com.inf.long2.Int<?> value)",
+                "of(" + sourceType + " value)"), ""));
+        assertMissingFactory(result, "com.inf.long2.Int<?>");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"Object", "com.inf.long2.Binary", "com.inf.long2.Binary<com.inf.long2.binaries.Binary256>",
+            "com.inf.long2.binaries.Binary256"})
+    void requiresTheCompleteBinarySourceInterface(String sourceType) throws IOException {
+        Compilation result = compile(fixture(DECLARATIONS.replace("of(com.inf.long2.Binary<?> value)",
+                "of(" + sourceType + " value)"), ""));
+        assertMissingFactory(result, "com.inf.long2.Binary<?>");
+    }
+
+    private static void assertMissingFactory(Compilation result, String sourceType) {
+        assertFalse(result.success(), result.messages());
+        assertTrue(result.messages().contains("must declare: public static fixture.Target of(" + sourceType + " "),
+                result.messages());
     }
 
     private static String fixture(String declarations, String omittedMethod) {

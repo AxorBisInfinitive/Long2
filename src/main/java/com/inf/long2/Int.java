@@ -2,12 +2,14 @@
 package com.inf.long2;
 
 import com.inf.long2.util.annotations.HaveToImplements;
+import com.inf.long2.util.annotations.KeepContractType;
 import com.inf.long2.util.annotations.StaticFieldImplementsCheck;
 import com.inf.long2.util.annotations.StaticMethodImplementsCheck;
 
 /**
  * 不可变的有符号定宽整数，采用补码表示。
- * 每个实现类型的位宽 W 固定为 {@code 64 * N}，N 为正整数，数值范围为
+ * 每个实现类型的位宽 W 由 {@link Format} 描述，固定为可用 int 表示的正 64 倍数。
+ * 分组数 {@code N = W / 64}，数值范围为
  * {@code -2^(W-1)} 至 {@code 2^(W-1)-1}。
  *
  * <p>算术运算保留数学结果的低 W 位，并按有符号补码解释，溢出时回绕而不抛异常。
@@ -25,7 +27,7 @@ import com.inf.long2.util.annotations.StaticMethodImplementsCheck;
  * <p>本接口的静态成员用于描述实现类必须直接声明的对应成员。
  * 字段初始化值与静态方法体是契约占位，调用者应使用具体实现类的静态成员。
  * 实现类应提供非空的 {@code public static final} 常量字段及对应的 {@code public static} 方法，
- * 声明类型中的本接口类型替换为实现类类型。
+ * 声明类型中的本接口类型替换为实现类类型，标有 {@link KeepContractType} 的参数保留完整声明类型。
  * AP 检查对应成员的声明和类型，不检查字段值、{@code final} 修饰符或方法的行为。
  * 以下静态成员的数值、结果及异常约定均针对实现类的对应成员。
  *
@@ -33,6 +35,24 @@ import com.inf.long2.util.annotations.StaticMethodImplementsCheck;
  */
 @StaticMethodImplementsCheck
 public interface Int<T extends Int<T>> extends Comparable<T> {
+
+    /**
+     * 固定补码位宽，不限定内部存储方式。
+     *
+     * @param bitWidth 包含符号位的总位宽，必须为正 64 倍数
+     */
+    record Format(int bitWidth) {
+        /** @throws IllegalArgumentException 位宽不是正 64 倍数 */
+        public Format {
+            if (bitWidth <= 0 || bitWidth % 64 != 0) {
+                throw new IllegalArgumentException("bitWidth must be a positive multiple of 64");
+            }
+        }
+    }
+
+    /** 当前实现类型的固定格式，所有实例的 {@link #format()} 必须与其相等。 */
+    @StaticFieldImplementsCheck
+    public static final Format FORMAT = null;
 
     /** 当前实现位宽下的最大值，数值为 {@code 2^(W-1)-1}。 */
     @StaticFieldImplementsCheck
@@ -92,6 +112,31 @@ public interface Int<T extends Int<T>> extends Comparable<T> {
     public static Int<?> of(double value) {
         return null;
     }
+
+    /**
+     * 从任意 Int 实现的完整补码数值转换，来源位宽由 {@link #format()} 提供。
+     * 扩宽时符号扩展，缩窄时保留低目标位宽；同类型转换可以复用来源实例。
+     * 不经过 primitive 浮点数或其他自定义数值类型。
+     *
+     * @throws NullPointerException 参数为 null
+     */
+    public static Int<?> of(@KeepContractType Int<?> value) {
+        return null;
+    }
+
+    /**
+     * 从任意 Binary 实现的精确源数值向零截断，越界时钳制到当前位宽的对应极值。
+     * NaN 和正负零转为零，正负无穷分别转为最大值和最小值。
+     * 通过符号、有效数字分组和位权读取，不先转换为 primitive 浮点数或其他自定义数值类型。
+     *
+     * @throws NullPointerException 参数为 null
+     */
+    public static Int<?> of(Binary<?> value) {
+        return null;
+    }
+
+    /** 返回非空的固定格式，所有实例均与当前实现类型的 FORMAT 相等。 */
+    public Format format();
 
     /**
      * 按 IEEE 754 最近偶数规则转换为 double，零转换为正零。
