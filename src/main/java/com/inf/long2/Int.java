@@ -106,6 +106,14 @@ public interface Int<T extends Int<T>> extends Comparable<T> {
     public byte[] toBytes();
 
     /**
+     * 将有限 float 向零截断为整数，结果超出数值范围时钳制到对应极值。
+     * {@code NaN} 转为零，正负无穷分别转为最大值和最小值，正零和负零均转为零。
+     */
+    public static Int<?> of(float value) {
+        return null;
+    }
+
+    /**
      * 将有限 double 向零截断为整数，结果超出数值范围时钳制到对应极值。
      * {@code NaN} 转为零，正负无穷分别转为最大值和最小值，正零和负零均转为零。
      */
@@ -137,6 +145,18 @@ public interface Int<T extends Int<T>> extends Comparable<T> {
 
     /** 返回非空的固定格式，所有实例均与当前实现类型的 FORMAT 相等。 */
     public Format format();
+
+    /** 按 Java 整数窄化规则保留低 32 位，并将结果解释为有符号 int。 */
+    public int toInt();
+
+    /** 按 Java 整数窄化规则保留低 64 位，并将结果解释为有符号 long。 */
+    public long toLong();
+
+    /**
+     * 从完整整数直接按 IEEE 754 最近偶数规则舍入为 float，零转换为正零。
+     * 舍入结果超出有限 float 范围时返回对应符号的无穷，不先经过 double 转换。
+     */
+    public float toFloat();
 
     /**
      * 按 IEEE 754 最近偶数规则转换为 double，零转换为正零。

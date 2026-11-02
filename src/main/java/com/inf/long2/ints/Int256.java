@@ -195,6 +195,11 @@ public final class Int256 implements Int<Int256> {
         return result;
     }
 
+    public static Int256 of(float value) {
+        // float 的有限值可由 double 精确表示，扩宽后沿用相同的截断和钳制规则。
+        return of((double) value);
+    }
+
     /**
      * 按 {@link Int#of(double)} 的转换规则构造 256-bit 整数。
      */
@@ -271,6 +276,52 @@ public final class Int256 implements Int<Int256> {
     @Override
     public Format format() {
         return FORMAT;
+    }
+
+    @Override
+    public int toInt() {
+        return (int) l3;
+    }
+
+    @Override
+    public long toLong() {
+        return l3;
+    }
+
+    @Override
+    public float toFloat() {
+        boolean negative = l0 < 0L;
+        long a0 = l0, a1 = l1, a2 = l2, a3 = l3;
+        if (negative) {
+            a3 = -l3;
+            a2 = ~l2 + (l3 == 0L ? 1L : 0L);
+            a1 = ~l1 + ((l3 | l2) == 0L ? 1L : 0L);
+            a0 = ~l0 + ((l3 | l2 | l1) == 0L ? 1L : 0L);
+        }
+        // 幅值达到 2^128 时必定上溢；较小值仍须舍入后决定是否上溢。
+        if ((a0 | a1) != 0L) {
+            return negative ? Float.NEGATIVE_INFINITY : Float.POSITIVE_INFINITY;
+        }
+        if ((a2 | a3) == 0L) {
+            return 0.0f;
+        }
+        long top = a2 != 0L ? a2 : a3;
+        long next = a2 != 0L ? a3 : 0L;
+        int offset = a2 != 0L ? 64 : 0;
+        int leading = Long.numberOfLeadingZeros(top);
+        long normalized = top << leading;
+        if (leading != 0) {
+            normalized |= next >>> (64 - leading);
+        }
+        int significand = (int) (normalized >>> 40);
+        boolean guard = (normalized & (1L << 39)) != 0L;
+        boolean sticky = (normalized & ((1L << 39) - 1)) != 0L || (next << leading) != 0L;
+        if (guard && (sticky || (significand & 1) != 0)) {
+            significand++;
+        }
+        // 舍入后的 significand 最多为 2^24，可由 float 精确接收；二次幂缩放仅可能发生上溢。
+        float result = Math.scalb((float) significand, offset + 40 - leading);
+        return negative ? -result : result;
     }
 
     @Override

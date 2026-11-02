@@ -24,6 +24,45 @@ class Int256ConversionTest {
     private static final BigInteger MAXIMUM = ONE.shiftLeft(255).subtract(ONE);
 
     @Test
+    void narrowsPrimitiveIntegersByDiscardingHighBitsAtSignedBoundaries() {
+        assertEquals(0, Int256.MIN_VALUE.toInt());
+        assertEquals(0L, Int256.MIN_VALUE.toLong());
+        assertEquals(-1, Int256.MAX_VALUE.toInt());
+        assertEquals(-1L, Int256.MAX_VALUE.toLong());
+        assertEquals(Integer.MIN_VALUE, Int256.parseInt("2147483648").toInt());
+        assertEquals(Integer.MAX_VALUE, Int256.parseInt("-2147483649").toInt());
+        assertEquals(0, Int256.parseInt("4294967296").toInt());
+        assertEquals(Long.MIN_VALUE, Int256.parseInt("9223372036854775808").toLong());
+        assertEquals(Long.MAX_VALUE, Int256.parseInt("-9223372036854775809").toLong());
+        assertEquals(0L, Int256.parseInt("18446744073709551616").toLong());
+        for (BigInteger center : List.of(BigInteger.ZERO, ONE, ONE.shiftLeft(31), ONE.shiftLeft(32),
+                ONE.shiftLeft(63), ONE.shiftLeft(64), ONE.shiftLeft(127), ONE.shiftLeft(192), MAXIMUM)) {
+            for (int delta : new int[] {-1, 0, 1}) {
+                BigInteger magnitude = center.add(BigInteger.valueOf(delta));
+                for (BigInteger signed : List.of(magnitude, magnitude.negate())) {
+                    Int<?> value = Int256.parseInt(signed.toString());
+                    assertEquals(signed.intValue(), value.toInt());
+                    assertEquals(signed.longValue(), value.toLong());
+                }
+            }
+        }
+    }
+
+    @Test
+    void narrowsRandomEncodingsAgainstBigIntegerWithoutChangingTheSource() {
+        Random random = new Random(0x1A220256L);
+        for (int i = 0; i < 5000; i++) {
+            byte[] bytes = new byte[32];
+            random.nextBytes(bytes);
+            BigInteger expected = new BigInteger(bytes);
+            Int<?> value = Int256.of(bytes);
+            assertEquals(expected.intValue(), value.toInt());
+            assertEquals(expected.longValue(), value.toLong());
+            assertArrayEquals(bytes, value.toBytes());
+        }
+    }
+
+    @Test
     void extendsAndTruncatesIntegerSourcesAcrossWordBoundaries() {
         Random random = new Random(0x1256C057L);
         for (int width : new int[] {64, 128, 192, 256, 320, 512, 1024}) {

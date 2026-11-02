@@ -23,6 +23,7 @@ class IntContractTest extends ProcessorTestSupport {
             public static final Target MAX_VALUE = null;
             public static final Target MIN_VALUE = null;
             public static Target of(long value) { return null; }
+            public static Target of(float value) { return null; }
             public static Target of(double value) { return null; }
             public static Target of(long[] value) { return null; }
             public static Target of(byte[] value) { return null; }
@@ -45,6 +46,10 @@ class IntContractTest extends ProcessorTestSupport {
                     static com.inf.long2.Int.Format format(com.inf.long2.Int<?> value) { return value.format(); }
                     static Target integer(com.inf.long2.Int<?> value) { return Target.of(value); }
                     static Target binary(com.inf.long2.Binary<?> value) { return Target.of(value); }
+                    static int primitiveInt(com.inf.long2.Int<?> value) { return value.toInt(); }
+                    static long primitiveLong(com.inf.long2.Int<?> value) { return value.toLong(); }
+                    static float primitiveFloat(com.inf.long2.Int<?> value) { return value.toFloat(); }
+                    static Target fromFloat(float value) { return Target.of(value); }
                 }
                 """);
     }
@@ -100,6 +105,31 @@ class IntContractTest extends ProcessorTestSupport {
         Compilation result = compile(fixture(DECLARATIONS, "format"));
         assertFalse(result.success(), result.messages());
         assertTrue(result.messages().contains("format()"), result.messages());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"toInt", "toLong", "toFloat"})
+    void requiresPrimitiveConversionInstanceMethods(String method) throws IOException {
+        Compilation result = compile(fixture(DECLARATIONS, method));
+        assertFalse(result.success(), result.messages());
+        assertTrue(result.messages().contains(method + "()"), result.messages());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"missing", "inherited", "boxed", "wrongReturn"})
+    void requiresADirectPrimitiveFloatFactory(String variant) throws IOException {
+        String declaration = "public static Target of(float value) { return null; }";
+        String replacement = switch (variant) {
+            case "boxed" -> "public static Target of(java.lang.Float value) { return null; }";
+            case "wrongReturn" -> "public static com.inf.long2.Int<?> of(float value) { return null; }";
+            default -> "";
+        };
+        String source = fixture(DECLARATIONS.replace(declaration, replacement), "");
+        if (variant.equals("inherited")) {
+            source = "class Base { " + declaration + " }\n"
+                    + source.replace("class Target implements", "class Target extends Base implements");
+        }
+        assertMissingFactory(compile(source), "float");
     }
 
     @ParameterizedTest
