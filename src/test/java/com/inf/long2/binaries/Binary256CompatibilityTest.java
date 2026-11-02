@@ -655,7 +655,7 @@ class Binary256CompatibilityTest {
     }
 
     @Test
-    void boundsGenericIntegerBitReadsWhilePreservingMidpointTails() {
+    void avoidsPerBitAndPopulationCountQueriesWhilePreservingMidpointTails() {
         for (int length : new int[] {1, 63, 64, 237, 238, 239, 240, 255, 256, 257, 4096, 65536, 262144}) {
             int width = ((length + 64) / 64) * 64;
             List<BigInteger> values = new ArrayList<>(List.of(ONE.shiftLeft(length - 1), ONE.shiftLeft(length).subtract(ONE)));
@@ -674,11 +674,8 @@ class Binary256CompatibilityTest {
                     int[] reads = new int[2];
                     Binary256 actual = Binary256.of(integer(width, signed, reads));
                     assertRaw(Binary256Baseline.of(integer(width, signed)), actual, "bounded Int length=" + length);
-                    assertTrue(reads[0] <= 239, "testBit reads=" + reads[0]);
-                    assertTrue(reads[1] <= 1, "bitCount reads=" + reads[1]);
-                    if (length <= 239) {
-                        assertEquals(0, reads[1]);
-                    }
+                    assertEquals(0, reads[0], "testBit reads");
+                    assertEquals(0, reads[1], "bitCount reads");
                 }
             }
         }
@@ -691,7 +688,7 @@ class Binary256CompatibilityTest {
             int[] reads = new int[2];
             assertRaw(Binary256Baseline.of(integer(width, minimum)), Binary256.of(integer(width, minimum, reads)),
                     "minimum Int width=" + width);
-            assertTrue(reads[0] <= 239);
+            assertEquals(0, reads[0]);
             assertEquals(0, reads[1]);
         }
     }

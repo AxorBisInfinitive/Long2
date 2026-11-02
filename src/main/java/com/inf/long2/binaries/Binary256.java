@@ -220,26 +220,71 @@ public final class Binary256 implements Binary<Binary256> {
             return fromInt256(fixed);
         }
         boolean negative = value.isNegative();
-        Int<?> magnitude = negative ? value.negate() : value;
-        long length = (long) magnitude.bitLength() + (magnitude.isNegative() ? 1 : 0);
+        int length = value.bitLength();
         if (length > FORMAT.maxExponent() + 1L) {
             return infinity(negative);
         }
-        int kept = (int) Math.min(length, 239);
-        int dropped = (int) (length - kept);
-        long[] words = new long[(kept + 63) / 64];
-        int ones = 0;
-        for (int i = 0; i < kept; i++) {
-            if (magnitude.testBit(dropped + i)) {
-                words[i / 64] |= 1L << (i & 63);
-                ones++;
+        if (length == 0) {
+            return negative ? fromUnsignedLong(true, 1, 0) : ZERO;
+        }
+        int groups = value.format().bitWidth() / 64;
+        if (length < 64) {
+            long raw = value.getLong(groups - 1);
+            return fromUnsignedLong(negative, negative ? -raw : raw, 0);
+        }
+        // 负数先读取 ~value 的高位，补码取负所需的加一合并到最终舍入，不构造完整幅值对象。
+        int discarded = Math.max(length - 237, 0);
+        int first = groups - 1 - (length - 1) / 64;
+        int last = groups - 1 - (discarded == 0 ? 0 : (discarded - 1) / 64);
+        long[] words = new long[4];
+        long boundary = 0;
+        for (int index = first; index <= last; index++) {
+            long raw = value.getLong(index);
+            boundary = raw;
+            long word = negative ? ~raw : raw;
+            int offset = (groups - 1 - index) * 64 - discarded;
+            if (offset > -64 && offset < 0) {
+                words[0] |= word >>> -offset;
+            } else if (offset >= 0) {
+                int group = offset / 64, bits = offset & 63;
+                words[group] |= word << bits;
+                if (bits != 0 && group + 1 < words.length) {
+                    words[group + 1] |= word >>> (64 - bits);
+                }
             }
         }
-        // 整数不会下溢；高 239 位恰为偶数一侧中点时，完整 bitCount 才影响舍入方向。
-        if (dropped != 0 && (words[0] & 7) == 2 && magnitude.bitCount() > ones) {
-            words[0] |= 1;
+        if (discarded == 0) {
+            if (negative) {
+                for (int index = 0; index < words.length; index++) {
+                    if (++words[index] != 0) {
+                        break;
+                    }
+                }
+            }
+            return fromDyadic(negative, words, 0);
         }
-        return fromDyadic(negative, words, dropped);
+        boolean guard = ((negative ? ~boundary : boundary) & (1L << ((discarded - 1) & 63))) != 0;
+        boolean odd = (words[0] & 1) != 0;
+        // |负数| = ~value + 1。guard 为一时必越过中点；为零时仅奇数侧的临界尾项可能进位。
+        boolean increment = negative
+                ? guard || (odd && !anyLowIntegerBits(value, groups, discarded - 1, boundary))
+                : guard && (odd || anyLowIntegerBits(value, groups, discarded - 1, boundary));
+        return packRounded(negative, words[0], words[1], words[2], words[3], discarded, increment);
+    }
+
+    /** boundary 是包含 bit count 的原始分组，检查其下方的 count 位，发现非零组即停止。 */
+    private static boolean anyLowIntegerBits(Int<?> value, int groups, int count, long boundary) {
+        int bits = count & 63;
+        if (bits != 0 && (boundary & ((1L << bits) - 1)) != 0) {
+            return true;
+        }
+        int boundaryIndex = groups - 1 - count / 64;
+        for (int index = groups - 1; index > boundaryIndex; index--) {
+            if (value.getLong(index) != 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Binary256 fromInt256(Int256 value) {
