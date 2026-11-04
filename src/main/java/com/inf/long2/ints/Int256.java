@@ -489,7 +489,7 @@ public final class Int256 implements Int<Int256> {
      * @see Int#parseInt(String)
      */
     public static Int256 parseInt(String value) {
-        int index = scanDecimal(value);
+        int index = IntText.scanDecimal(value);
         if (index < 0) {
             throw new NumberFormatException("Invalid decimal value: " + value);
         }
@@ -536,26 +536,7 @@ public final class Int256 implements Int<Int256> {
 
     /** 仅校验 parseInt(String) 接受的十进制语法，null 返回 false，不执行数值转换。 */
     public static boolean isValid(String value) {
-        return scanDecimal(value) >= 0;
-    }
-
-    /** 返回合法十进制文本的首位数字索引；非法输入（包括 null）返回 -1。 */
-    private static int scanDecimal(String value) {
-        if (value == null || value.isEmpty()) {
-            return -1;
-        }
-        char first = value.charAt(0);
-        int start = first == '+' || first == '-' ? 1 : 0;
-        if (start == value.length()) {
-            return -1;
-        }
-        for (int index = start; index < value.length(); index++) {
-            char c = value.charAt(index);
-            if (c < '0' || c > '9') {
-                return -1;
-            }
-        }
-        return start;
+        return IntText.isValid(value);
     }
 
     @Override
@@ -587,16 +568,7 @@ public final class Int256 implements Int<Int256> {
 
     /** 仅校验 parseHexInt(String) 接受的小写十六进制语法，检查包括被截断高位在内的全部字符。 */
     public static boolean isHexValid(String value) {
-        if (value == null || value.length() <= 2 || !value.startsWith("0x")) {
-            return false;
-        }
-        for (int index = 2; index < value.length(); index++) {
-            char c = value.charAt(index);
-            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) {
-                return false;
-            }
-        }
-        return true;
+        return IntText.isHexValid(value);
     }
 
     @Override

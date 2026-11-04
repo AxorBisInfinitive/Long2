@@ -214,71 +214,19 @@ public final class Int512 implements Int<Int512> {
 
     @Override
     public float toFloat() {
-        return Float.intBitsToFloat((int) primitiveBits(24, 127, 8));
+        return Float.intBitsToFloat((int) IntWords.primitiveBits(magnitude(), isNegative(), 24, 127, 8));
     }
 
     @Override
     public double toDouble() {
-        return Double.longBitsToDouble(primitiveBits(53, 1023, 11));
-    }
-
-    /** 从完整幅值直接舍入，sticky 覆盖全部舍弃分组，避免经中间浮点格式产生二次舍入。 */
-    private long primitiveBits(int precision, int bias, int exponentBits) {
-        long[] words = magnitude();
-        int top = 7;
-        while (top >= 0 && words[top] == 0) {
-            top--;
-        }
-        if (top < 0) {
-            return 0;
-        }
-        int exponent = top * 64 + 63 - Long.numberOfLeadingZeros(words[top]);
-        int fractionBits = precision - 1;
-        long sign = isNegative() ? 1L << (fractionBits + exponentBits) : 0;
-        long infinity = ((1L << exponentBits) - 1) << fractionBits;
-        if (exponent > bias) {
-            return sign | infinity;
-        }
-        int discarded = exponent - fractionBits;
-        long significand;
-        if (discarded <= 0) {
-            significand = words[0] << -discarded;
-        } else {
-            int group = discarded >>> 6, bits = discarded & 63;
-            significand = words[group] >>> bits;
-            if (bits != 0 && group + 1 < words.length) {
-                significand |= words[group + 1] << (64 - bits);
-            }
-            int guard = discarded - 1;
-            boolean sticky = (words[guard >>> 6] & ((1L << (guard & 63)) - 1)) != 0;
-            for (int index = 0; index < (guard >>> 6) && !sticky; index++) {
-                sticky = words[index] != 0;
-            }
-            if ((words[guard >>> 6] & (1L << (guard & 63))) != 0
-                    && (sticky || (significand & 1) != 0)) {
-                significand++;
-            }
-            if (significand == (1L << precision)) {
-                significand >>>= 1;
-                exponent++;
-            }
-        }
-        if (exponent > bias) {
-            return sign | infinity;
-        }
-        return sign | ((long) (exponent + bias) << fractionBits)
-                | (significand & ((1L << fractionBits) - 1));
+        return Double.longBitsToDouble(IntWords.primitiveBits(magnitude(), isNegative(), 53, 1023, 11));
     }
 
     /** 低组在前的独占无符号幅值，最小负数也保留完整的正绝对值位模式。 */
     private long[] magnitude() {
         long[] words = {l7, l6, l5, l4, l3, l2, l1, l0};
         if (isNegative()) {
-            long carry = 1;
-            for (int index = 0; index < words.length; index++) {
-                words[index] = ~words[index] + carry;
-                carry = carry != 0 && words[index] == 0 ? 1 : 0;
-            }
+            IntWords.negateInPlace(words);
         }
         return words;
     }
@@ -292,85 +240,15 @@ public final class Int512 implements Int<Int512> {
         if (isZero()) {
             return "0";
         }
-        long[] words = magnitude();
-        // 绝对值最多 154 位，十八个九位分组加上负号共需 163 个字符。
-        char[] chars = new char[163];
-        int position = chars.length;
-        long remaining;
-        do {
-            long remainder = 0;
-            remaining = 0;
-            for (int index = 7; index >= 0; index--) {
-                // remainder 小于 10^9，拼接 32 位后仍可使用有符号 long 除法。
-                long pair = (remainder << 32) | (words[index] >>> 32);
-                long high = pair / 1_000_000_000;
-                remainder = pair % 1_000_000_000;
-                pair = (remainder << 32) | (words[index] & 0xffff_ffffL);
-                words[index] = (high << 32) | (pair / 1_000_000_000);
-                remainder = pair % 1_000_000_000;
-                remaining |= words[index];
-            }
-            for (int digit = 0; digit < 9; digit++) {
-                chars[--position] = (char) ('0' + remainder % 10);
-                remainder /= 10;
-            }
-        } while (remaining != 0);
-        while (chars[position] == '0') {
-            position++;
-        }
-        if (isNegative()) {
-            chars[--position] = '-';
-        }
-        return new String(chars, position, chars.length - position);
+        return IntText.toDecimal(magnitude(), isNegative());
     }
 
     public static Int512 parseInt(String value) {
-        int index = scanDecimal(value);
-        if (index < 0) {
-            throw new NumberFormatException("Invalid decimal value: " + value);
-        }
-        boolean negative = value.charAt(0) == '-';
-        long[] words = new long[8];
-        while (index < value.length()) {
-            int count = Math.min(9, value.length() - index), factor = 1, chunk = 0;
-            for (int digit = 0; digit < count; digit++) {
-                chunk = chunk * 10 + value.charAt(index++) - '0';
-                factor *= 10;
-            }
-            long carry = chunk;
-            for (int group = 0; group < words.length; group++) {
-                long low = (words[group] & 0xffff_ffffL) * factor + carry;
-                long high = (words[group] >>> 32) * factor + (low >>> 32);
-                words[group] = (high << 32) | (low & 0xffff_ffffL);
-                carry = high >>> 32;
-            }
-            // 最高组之外的进位丢弃，长文本同样按模 2^512 累积。
-        }
-        Int512 result = fromLowWords(words);
-        return negative ? result.negate() : result;
+        return fromLowWords(IntText.parseDecimal(value, 8));
     }
 
     public static boolean isValid(String value) {
-        return scanDecimal(value) >= 0;
-    }
-
-    /** 返回首位数字索引，非法文本和 null 返回 -1，不执行数值转换。 */
-    private static int scanDecimal(String value) {
-        if (value == null || value.isEmpty()) {
-            return -1;
-        }
-        char first = value.charAt(0);
-        int start = first == '+' || first == '-' ? 1 : 0;
-        if (start == value.length()) {
-            return -1;
-        }
-        for (int index = start; index < value.length(); index++) {
-            char c = value.charAt(index);
-            if (c < '0' || c > '9') {
-                return -1;
-            }
-        }
-        return start;
+        return IntText.isValid(value);
     }
 
     @Override
@@ -379,34 +257,11 @@ public final class Int512 implements Int<Int512> {
     }
 
     public static Int512 parseHexInt(String value) {
-        Objects.requireNonNull(value);
-        if (!isHexValid(value)) {
-            throw new NumberFormatException("Invalid hexadecimal value: " + value);
-        }
-        // 校验全文后才截断，丢弃的高位中也不允许出现非法字符。
-        String hex = value.substring(Math.max(2, value.length() - 128));
-        hex = "0".repeat(128 - hex.length()) + hex;
-        return new Int512(Long.parseUnsignedLong(hex.substring(0, 16), 16),
-                Long.parseUnsignedLong(hex.substring(16, 32), 16),
-                Long.parseUnsignedLong(hex.substring(32, 48), 16),
-                Long.parseUnsignedLong(hex.substring(48, 64), 16),
-                Long.parseUnsignedLong(hex.substring(64, 80), 16),
-                Long.parseUnsignedLong(hex.substring(80, 96), 16),
-                Long.parseUnsignedLong(hex.substring(96, 112), 16),
-                Long.parseUnsignedLong(hex.substring(112, 128), 16));
+        return fromLowWords(IntText.parseHex(value, 8));
     }
 
     public static boolean isHexValid(String value) {
-        if (value == null || value.length() <= 2 || !value.startsWith("0x")) {
-            return false;
-        }
-        for (int index = 2; index < value.length(); index++) {
-            char c = value.charAt(index);
-            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) {
-                return false;
-            }
-        }
-        return true;
+        return IntText.isHexValid(value);
     }
 
     @Override
