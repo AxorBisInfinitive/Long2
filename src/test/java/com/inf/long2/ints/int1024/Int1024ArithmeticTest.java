@@ -200,6 +200,31 @@ class Int1024ArithmeticTest {
     }
 
     @Test
+    void multipliesOddAndEvenUnsignedWordsAroundTheSignBit() {
+        long[] words = {0L, 1L, 2L, 3L, Long.MAX_VALUE - 1, Long.MAX_VALUE,
+                Long.MIN_VALUE, Long.MIN_VALUE + 1, -3L, -2L, -1L};
+        for (int adjacent = 0; adjacent < 15; adjacent++) {
+            for (long first : words) {
+                for (long second : words) {
+                    long[] a = new long[16], b = new long[16];
+                    for (int index = 0; index < 16; index++) {
+                        a[index] = -1L;
+                        b[index] = -1L;
+                    }
+                    a[adjacent] = first;
+                    a[adjacent + 1] = second;
+                    b[adjacent] = second;
+                    b[adjacent + 1] = first;
+                    Int1024 x = Int1024.of(a), y = Int1024.of(b);
+                    BigInteger expected = number(x).multiply(number(y));
+                    assertNumber(expected, x.multiply(y));
+                    assertNumber(expected, y.multiply(x));
+                }
+            }
+        }
+    }
+
+    @Test
     void keepsEqualityHashingAndNullHandlingConsistent() {
         Int1024 value = random(new Random(0x1024E0L));
         Int1024 same = Int1024.of(value.toBytes());

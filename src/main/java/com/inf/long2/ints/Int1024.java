@@ -495,7 +495,7 @@ public final class Int1024 implements Int<Int1024> {
         Objects.requireNonNull(other);
         // 两段固定列内核共用一个低组在前的独占结果数组，无临时整数对象。
         long[] result = new long[16];
-        int carry = multiplyLowColumns(other, result);
+        long carry = multiplyLowColumns(other, result);
         multiplyHighColumns(other, result, carry);
         return new Int1024(result[15], result[14], result[13], result[12],
                 result[11], result[10], result[9], result[8],
@@ -504,13 +504,12 @@ public final class Int1024 implements Int<Int1024> {
     }
 
     /**
-     * 固定列内核由 debug/multiplication-analysis/generate_int_multiplication.py 生成。
      * 完整覆盖 result[0..7]，返回第 8 列的输入进位 C8（0 至 14）。
      * 列和包含低半积、前一对角线的高半积及 Ck；
      * 每次无符号溢出给 C(k+1) 加一，其上界为 2k，不能视为单 bit。
      */
-    private int multiplyLowColumns(Int1024 other, long[] result) {
-        int carry = 0;
+    private long multiplyLowColumns(Int1024 other, long[] result) {
+        long carry = 0;
         long sum, t;
 
         // 第 0 列，位权为 2^0。
@@ -520,12 +519,10 @@ public final class Int1024 implements Int<Int1024> {
         // 第 1 列，位权为 2^64。
         sum = Math.unsignedMultiplyHigh(l15, other.l15);
         t = sum + l15 * other.l14;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l14 * other.l15;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         result[1] = sum;
 
@@ -533,24 +530,19 @@ public final class Int1024 implements Int<Int1024> {
         sum = carry;
         carry = 0;
         t = sum + Math.unsignedMultiplyHigh(l15, other.l14);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l14, other.l15);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l15 * other.l13;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l14 * other.l14;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l13 * other.l15;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         result[2] = sum;
 
@@ -558,32 +550,25 @@ public final class Int1024 implements Int<Int1024> {
         sum = carry;
         carry = 0;
         t = sum + Math.unsignedMultiplyHigh(l15, other.l13);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l14, other.l14);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l13, other.l15);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l15 * other.l12;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l14 * other.l13;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l13 * other.l14;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l12 * other.l15;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         result[3] = sum;
 
@@ -591,40 +576,31 @@ public final class Int1024 implements Int<Int1024> {
         sum = carry;
         carry = 0;
         t = sum + Math.unsignedMultiplyHigh(l15, other.l12);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l14, other.l13);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l13, other.l14);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l12, other.l15);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l15 * other.l11;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l14 * other.l12;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l13 * other.l13;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l12 * other.l14;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l11 * other.l15;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         result[4] = sum;
 
@@ -632,48 +608,37 @@ public final class Int1024 implements Int<Int1024> {
         sum = carry;
         carry = 0;
         t = sum + Math.unsignedMultiplyHigh(l15, other.l11);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l14, other.l12);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l13, other.l13);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l12, other.l14);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l11, other.l15);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l15 * other.l10;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l14 * other.l11;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l13 * other.l12;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l12 * other.l13;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l11 * other.l14;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l10 * other.l15;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         result[5] = sum;
 
@@ -681,56 +646,43 @@ public final class Int1024 implements Int<Int1024> {
         sum = carry;
         carry = 0;
         t = sum + Math.unsignedMultiplyHigh(l15, other.l10);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l14, other.l11);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l13, other.l12);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l12, other.l13);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l11, other.l14);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l10, other.l15);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l15 * other.l9;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l14 * other.l10;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l13 * other.l11;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l12 * other.l12;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l11 * other.l13;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l10 * other.l14;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l9 * other.l15;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         result[6] = sum;
 
@@ -738,64 +690,49 @@ public final class Int1024 implements Int<Int1024> {
         sum = carry;
         carry = 0;
         t = sum + Math.unsignedMultiplyHigh(l15, other.l9);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l14, other.l10);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l13, other.l11);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l12, other.l12);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l11, other.l13);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l10, other.l14);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l9, other.l15);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l15 * other.l8;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l14 * other.l9;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l13 * other.l10;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l12 * other.l11;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l11 * other.l12;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l10 * other.l13;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l9 * other.l14;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l8 * other.l15;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         result[7] = sum;
 
@@ -803,79 +740,62 @@ public final class Int1024 implements Int<Int1024> {
     }
 
     /** 完整覆盖 result[8..15]；C15 不超过 28，最高保留列的向外进位丢弃。 */
-    private void multiplyHighColumns(Int1024 other, long[] result, int carry) {
+    private void multiplyHighColumns(Int1024 other, long[] result, long carry) {
         long sum, t;
 
         // 第 8 列，位权为 2^512。
         sum = carry;
         carry = 0;
         t = sum + Math.unsignedMultiplyHigh(l15, other.l8);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l14, other.l9);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l13, other.l10);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l12, other.l11);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l11, other.l12);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l10, other.l13);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l9, other.l14);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l8, other.l15);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l15 * other.l7;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l14 * other.l8;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l13 * other.l9;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l12 * other.l10;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l11 * other.l11;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l10 * other.l12;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l9 * other.l13;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l8 * other.l14;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l7 * other.l15;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         result[8] = sum;
 
@@ -883,80 +803,61 @@ public final class Int1024 implements Int<Int1024> {
         sum = carry;
         carry = 0;
         t = sum + Math.unsignedMultiplyHigh(l15, other.l7);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l14, other.l8);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l13, other.l9);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l12, other.l10);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l11, other.l11);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l10, other.l12);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l9, other.l13);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l8, other.l14);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l7, other.l15);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l15 * other.l6;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l14 * other.l7;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l13 * other.l8;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l12 * other.l9;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l11 * other.l10;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l10 * other.l11;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l9 * other.l12;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l8 * other.l13;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l7 * other.l14;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l6 * other.l15;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         result[9] = sum;
 
@@ -964,88 +865,67 @@ public final class Int1024 implements Int<Int1024> {
         sum = carry;
         carry = 0;
         t = sum + Math.unsignedMultiplyHigh(l15, other.l6);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l14, other.l7);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l13, other.l8);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l12, other.l9);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l11, other.l10);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l10, other.l11);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l9, other.l12);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l8, other.l13);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l7, other.l14);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l6, other.l15);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l15 * other.l5;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l14 * other.l6;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l13 * other.l7;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l12 * other.l8;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l11 * other.l9;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l10 * other.l10;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l9 * other.l11;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l8 * other.l12;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l7 * other.l13;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l6 * other.l14;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l5 * other.l15;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         result[10] = sum;
 
@@ -1053,96 +933,73 @@ public final class Int1024 implements Int<Int1024> {
         sum = carry;
         carry = 0;
         t = sum + Math.unsignedMultiplyHigh(l15, other.l5);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l14, other.l6);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l13, other.l7);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l12, other.l8);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l11, other.l9);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l10, other.l10);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l9, other.l11);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l8, other.l12);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l7, other.l13);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l6, other.l14);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l5, other.l15);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l15 * other.l4;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l14 * other.l5;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l13 * other.l6;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l12 * other.l7;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l11 * other.l8;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l10 * other.l9;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l9 * other.l10;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l8 * other.l11;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l7 * other.l12;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l6 * other.l13;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l5 * other.l14;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l4 * other.l15;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         result[11] = sum;
 
@@ -1150,104 +1007,79 @@ public final class Int1024 implements Int<Int1024> {
         sum = carry;
         carry = 0;
         t = sum + Math.unsignedMultiplyHigh(l15, other.l4);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l14, other.l5);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l13, other.l6);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l12, other.l7);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l11, other.l8);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l10, other.l9);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l9, other.l10);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l8, other.l11);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l7, other.l12);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l6, other.l13);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l5, other.l14);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l4, other.l15);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l15 * other.l3;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l14 * other.l4;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l13 * other.l5;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l12 * other.l6;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l11 * other.l7;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l10 * other.l8;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l9 * other.l9;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l8 * other.l10;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l7 * other.l11;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l6 * other.l12;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l5 * other.l13;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l4 * other.l14;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l3 * other.l15;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         result[12] = sum;
 
@@ -1255,112 +1087,85 @@ public final class Int1024 implements Int<Int1024> {
         sum = carry;
         carry = 0;
         t = sum + Math.unsignedMultiplyHigh(l15, other.l3);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l14, other.l4);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l13, other.l5);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l12, other.l6);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l11, other.l7);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l10, other.l8);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l9, other.l9);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l8, other.l10);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l7, other.l11);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l6, other.l12);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l5, other.l13);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l4, other.l14);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l3, other.l15);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l15 * other.l2;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l14 * other.l3;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l13 * other.l4;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l12 * other.l5;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l11 * other.l6;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l10 * other.l7;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l9 * other.l8;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l8 * other.l9;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l7 * other.l10;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l6 * other.l11;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l5 * other.l12;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l4 * other.l13;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l3 * other.l14;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l2 * other.l15;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         result[13] = sum;
 
@@ -1368,120 +1173,91 @@ public final class Int1024 implements Int<Int1024> {
         sum = carry;
         carry = 0;
         t = sum + Math.unsignedMultiplyHigh(l15, other.l2);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l14, other.l3);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l13, other.l4);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l12, other.l5);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l11, other.l6);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l10, other.l7);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l9, other.l8);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l8, other.l9);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l7, other.l10);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l6, other.l11);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l5, other.l12);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l4, other.l13);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l3, other.l14);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + Math.unsignedMultiplyHigh(l2, other.l15);
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l15 * other.l1;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l14 * other.l2;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l13 * other.l3;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l12 * other.l4;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l11 * other.l5;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l10 * other.l6;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l9 * other.l7;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l8 * other.l8;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l7 * other.l9;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l6 * other.l10;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l5 * other.l11;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l4 * other.l12;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l3 * other.l13;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l2 * other.l14;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         t = sum + l1 * other.l15;
-        if (Long.compareUnsigned(t, sum) < 0)
-            carry++;
+        carry += Long.compareUnsigned(t, sum) < 0 ? 1L : 0L;
         sum = t;
         result[14] = sum;
 

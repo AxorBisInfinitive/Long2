@@ -164,6 +164,31 @@ class Int512ArithmeticTest {
     }
 
     @Test
+    void multipliesOddAndEvenUnsignedWordsAroundTheSignBit() {
+        long[] words = {0L, 1L, 2L, 3L, Long.MAX_VALUE - 1, Long.MAX_VALUE,
+                Long.MIN_VALUE, Long.MIN_VALUE + 1, -3L, -2L, -1L};
+        for (int adjacent = 0; adjacent < 7; adjacent++) {
+            for (long first : words) {
+                for (long second : words) {
+                    long[] a = new long[8], b = new long[8];
+                    for (int index = 0; index < 8; index++) {
+                        a[index] = -1L;
+                        b[index] = -1L;
+                    }
+                    a[adjacent] = first;
+                    a[adjacent + 1] = second;
+                    b[adjacent] = second;
+                    b[adjacent + 1] = first;
+                    Int512 x = Int512.of(a), y = Int512.of(b);
+                    BigInteger expected = number(x).multiply(number(y));
+                    assertNumber(expected, x.multiply(y));
+                    assertNumber(expected, y.multiply(x));
+                }
+            }
+        }
+    }
+
+    @Test
     void keepsEqualityHashingAndNullHandlingConsistent() {
         Int512 value = random(new Random(0x512E0L));
         Int512 same = Int512.of(value.toBytes());
