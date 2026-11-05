@@ -189,6 +189,22 @@ class Int512ArithmeticTest {
     }
 
     @Test
+    void normalizesDenseColumnSumsBeforePassingTheirCarries() {
+        assertEquals(Int512.ONE, Int512.of(-1L).multiply(Int512.of(-1L)));
+        // 全一部分积的独立列和可能为 2^64-1；加入输入进位后必须再次进位。
+        for (int lowWords = 2; lowWords <= 8; lowWords++) {
+            BigInteger dense = ONE.shiftLeft(lowWords * 64).subtract(ONE);
+            for (int delta = -2; delta <= 2; delta++) {
+                BigInteger other = dense.add(BigInteger.valueOf(delta));
+                Int512 a = from(dense), b = from(other);
+                BigInteger expected = dense.multiply(other);
+                assertNumber(expected, a.multiply(b));
+                assertNumber(expected, b.multiply(a));
+            }
+        }
+    }
+
+    @Test
     void keepsEqualityHashingAndNullHandlingConsistent() {
         Int512 value = random(new Random(0x512E0L));
         Int512 same = Int512.of(value.toBytes());

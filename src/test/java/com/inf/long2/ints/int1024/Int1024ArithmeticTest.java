@@ -225,6 +225,48 @@ class Int1024ArithmeticTest {
     }
 
     @Test
+    void normalizesDenseColumnSumsBeforePassingTheirCarries() {
+        assertEquals(Int1024.ONE, Int1024.of(-1L).multiply(Int1024.of(-1L)));
+        for (int lowWords = 2; lowWords <= 16; lowWords++) {
+            BigInteger dense = ONE.shiftLeft(lowWords * 64).subtract(ONE);
+            for (int delta = -2; delta <= 2; delta++) {
+                BigInteger other = dense.add(BigInteger.valueOf(delta));
+                Int1024 a = from(dense), b = from(other);
+                BigInteger expected = dense.multiply(other);
+                assertNumber(expected, a.multiply(b));
+                assertNumber(expected, b.multiply(a));
+            }
+        }
+    }
+
+    @Test
+    void transfersNormalizedMultiBitCarryAcrossThe704BitBoundary() {
+        BigInteger split = ONE.shiftLeft(704), lowMask = split.subtract(ONE);
+        BigInteger highMask = ONE.shiftLeft(320).subtract(ONE);
+        List<BigInteger> lows = List.of(lowMask, lowMask.subtract(ONE), ONE.shiftLeft(703), ONE);
+        List<BigInteger> highs = List.of(BigInteger.ZERO, ONE, highMask, ONE.shiftLeft(319));
+        for (BigInteger lowA : lows) {
+            for (BigInteger lowB : lows) {
+                for (BigInteger highA : highs) {
+                    for (BigInteger highB : highs) {
+                        Int1024 a = from(highA.shiftLeft(704).or(lowA));
+                        Int1024 b = from(highB.shiftLeft(704).or(lowB));
+                        byte[] beforeA = a.toBytes(), beforeB = b.toBytes();
+                        BigInteger expected = number(a).multiply(number(b));
+                        assertNumber(expected, a.multiply(b));
+                        assertNumber(expected, b.multiply(a));
+                        assertNumber(number(a).pow(2), a.multiply(a));
+                        assertArrayEquals(beforeA, a.toBytes());
+                        assertArrayEquals(beforeB, b.toBytes());
+                    }
+                }
+            }
+        }
+        // 低 704 位全一相乘时，C11 为 10，包含归一化产生的额外一。
+        assertNumber(ONE.subtract(ONE.shiftLeft(705)), from(lowMask).multiply(from(lowMask)));
+    }
+
+    @Test
     void keepsEqualityHashingAndNullHandlingConsistent() {
         Int1024 value = random(new Random(0x1024E0L));
         Int1024 same = Int1024.of(value.toBytes());
