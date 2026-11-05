@@ -2,5 +2,6 @@
 /ap/target/
 /doc/
 /debug/
+/repos/
 __pycache__/
 /AGENTS.md
