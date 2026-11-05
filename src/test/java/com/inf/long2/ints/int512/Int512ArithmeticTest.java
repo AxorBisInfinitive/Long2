@@ -120,6 +120,50 @@ class Int512ArithmeticTest {
     }
 
     @Test
+    void placesUnsignedWordProductsInEveryRetainedColumn() {
+        BigInteger wordMask = ONE.shiftLeft(64).subtract(ONE);
+        long[] patterns = {1L, -1L, Long.MIN_VALUE, Long.MAX_VALUE,
+                0xaaaa_aaaa_aaaa_aaaaL, 0x5555_5555_5555_5555L};
+        for (int first = 0; first < 8; first++) {
+            for (int second = 0; second < 8; second++) {
+                for (long a : patterns) {
+                    for (long b : patterns) {
+                        BigInteger x = BigInteger.valueOf(a).and(wordMask).shiftLeft(first * 64);
+                        BigInteger y = BigInteger.valueOf(b).and(wordMask).shiftLeft(second * 64);
+                        assertNumber(x.multiply(y), from(x).multiply(from(y)));
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    void accumulatesMultipleColumnCarriesWithoutMutatingDenseOperands() {
+        long[] patterns = {-1L, -2L, Long.MIN_VALUE, Long.MAX_VALUE,
+                0xaaaa_aaaa_aaaa_aaaaL, 0x5555_5555_5555_5555L};
+        for (long first : patterns) {
+            for (long second : patterns) {
+                for (int phase = 0; phase < 8; phase++) {
+                    long[] a = new long[8], b = new long[8];
+                    for (int index = 0; index < 8; index++) {
+                        a[index] = (index & 1) == 0 ? first : second;
+                        b[index] = index == phase ? second : first;
+                    }
+                    Int512 x = Int512.of(a), y = Int512.of(b);
+                    byte[] beforeX = x.toBytes(), beforeY = y.toBytes();
+                    BigInteger expected = number(x).multiply(number(y));
+                    assertNumber(expected, x.multiply(y));
+                    assertNumber(expected, y.multiply(x));
+                    assertNumber(number(x).pow(2), x.multiply(x));
+                    assertArrayEquals(beforeX, x.toBytes());
+                    assertArrayEquals(beforeY, y.toBytes());
+                }
+            }
+        }
+        assertThrowsExactly(NullPointerException.class, () -> Int512.ZERO.multiply(null));
+    }
+
+    @Test
     void keepsEqualityHashingAndNullHandlingConsistent() {
         Int512 value = random(new Random(0x512E0L));
         Int512 same = Int512.of(value.toBytes());

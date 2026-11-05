@@ -387,23 +387,243 @@ public final class Int512 implements Int<Int512> {
     @Override
     public Int512 multiply(Int512 other) {
         Objects.requireNonNull(other);
-        long[] result = new long[8];
-        // 补码乘法保留低 512 位时可直接累加无符号部分积，不必另行处理符号。
-        for (int i = 0; i < 8; i++) {
-            long a = getLong(7 - i), carry = 0;
-            for (int j = 0; i + j < 8; j++) {
-                long b = other.getLong(7 - j), low = a * b;
-                long high = Math.unsignedMultiplyHigh(a, b);
-                long sum = low + result[i + j];
-                high += Long.compareUnsigned(sum, low) < 0 ? 1 : 0;
-                long next = sum + carry;
-                high += Long.compareUnsigned(next, sum) < 0 ? 1 : 0;
-                result[i + j] = next;
-                carry = high;
-            }
-            // 每行都计算到最高保留组，末尾进位位于 512 位之外。
-        }
-        return fromLowWords(result);
+        // 固定列展开由 debug/multiplication-analysis/generate_int_multiplication.py 生成。
+        // 按原始补码累加低 512 位；列进位为溢出次数，可能大于一。
+        long r7 = l7 * other.l7;
+        int carry = 0;
+        long t;
+
+        // 第 1 列，位权为 2^64。
+        long r6 = Math.unsignedMultiplyHigh(l7, other.l7);
+        t = r6 + l7 * other.l6;
+        if (Long.compareUnsigned(t, r6) < 0)
+            carry++;
+        r6 = t;
+        t = r6 + l6 * other.l7;
+        if (Long.compareUnsigned(t, r6) < 0)
+            carry++;
+        r6 = t;
+
+        // 第 2 列，位权为 2^128。
+        long r5 = carry;
+        carry = 0;
+        t = r5 + Math.unsignedMultiplyHigh(l7, other.l6);
+        if (Long.compareUnsigned(t, r5) < 0)
+            carry++;
+        r5 = t;
+        t = r5 + Math.unsignedMultiplyHigh(l6, other.l7);
+        if (Long.compareUnsigned(t, r5) < 0)
+            carry++;
+        r5 = t;
+        t = r5 + l7 * other.l5;
+        if (Long.compareUnsigned(t, r5) < 0)
+            carry++;
+        r5 = t;
+        t = r5 + l6 * other.l6;
+        if (Long.compareUnsigned(t, r5) < 0)
+            carry++;
+        r5 = t;
+        t = r5 + l5 * other.l7;
+        if (Long.compareUnsigned(t, r5) < 0)
+            carry++;
+        r5 = t;
+
+        // 第 3 列，位权为 2^192。
+        long r4 = carry;
+        carry = 0;
+        t = r4 + Math.unsignedMultiplyHigh(l7, other.l5);
+        if (Long.compareUnsigned(t, r4) < 0)
+            carry++;
+        r4 = t;
+        t = r4 + Math.unsignedMultiplyHigh(l6, other.l6);
+        if (Long.compareUnsigned(t, r4) < 0)
+            carry++;
+        r4 = t;
+        t = r4 + Math.unsignedMultiplyHigh(l5, other.l7);
+        if (Long.compareUnsigned(t, r4) < 0)
+            carry++;
+        r4 = t;
+        t = r4 + l7 * other.l4;
+        if (Long.compareUnsigned(t, r4) < 0)
+            carry++;
+        r4 = t;
+        t = r4 + l6 * other.l5;
+        if (Long.compareUnsigned(t, r4) < 0)
+            carry++;
+        r4 = t;
+        t = r4 + l5 * other.l6;
+        if (Long.compareUnsigned(t, r4) < 0)
+            carry++;
+        r4 = t;
+        t = r4 + l4 * other.l7;
+        if (Long.compareUnsigned(t, r4) < 0)
+            carry++;
+        r4 = t;
+
+        // 第 4 列，位权为 2^256。
+        long r3 = carry;
+        carry = 0;
+        t = r3 + Math.unsignedMultiplyHigh(l7, other.l4);
+        if (Long.compareUnsigned(t, r3) < 0)
+            carry++;
+        r3 = t;
+        t = r3 + Math.unsignedMultiplyHigh(l6, other.l5);
+        if (Long.compareUnsigned(t, r3) < 0)
+            carry++;
+        r3 = t;
+        t = r3 + Math.unsignedMultiplyHigh(l5, other.l6);
+        if (Long.compareUnsigned(t, r3) < 0)
+            carry++;
+        r3 = t;
+        t = r3 + Math.unsignedMultiplyHigh(l4, other.l7);
+        if (Long.compareUnsigned(t, r3) < 0)
+            carry++;
+        r3 = t;
+        t = r3 + l7 * other.l3;
+        if (Long.compareUnsigned(t, r3) < 0)
+            carry++;
+        r3 = t;
+        t = r3 + l6 * other.l4;
+        if (Long.compareUnsigned(t, r3) < 0)
+            carry++;
+        r3 = t;
+        t = r3 + l5 * other.l5;
+        if (Long.compareUnsigned(t, r3) < 0)
+            carry++;
+        r3 = t;
+        t = r3 + l4 * other.l6;
+        if (Long.compareUnsigned(t, r3) < 0)
+            carry++;
+        r3 = t;
+        t = r3 + l3 * other.l7;
+        if (Long.compareUnsigned(t, r3) < 0)
+            carry++;
+        r3 = t;
+
+        // 第 5 列，位权为 2^320。
+        long r2 = carry;
+        carry = 0;
+        t = r2 + Math.unsignedMultiplyHigh(l7, other.l3);
+        if (Long.compareUnsigned(t, r2) < 0)
+            carry++;
+        r2 = t;
+        t = r2 + Math.unsignedMultiplyHigh(l6, other.l4);
+        if (Long.compareUnsigned(t, r2) < 0)
+            carry++;
+        r2 = t;
+        t = r2 + Math.unsignedMultiplyHigh(l5, other.l5);
+        if (Long.compareUnsigned(t, r2) < 0)
+            carry++;
+        r2 = t;
+        t = r2 + Math.unsignedMultiplyHigh(l4, other.l6);
+        if (Long.compareUnsigned(t, r2) < 0)
+            carry++;
+        r2 = t;
+        t = r2 + Math.unsignedMultiplyHigh(l3, other.l7);
+        if (Long.compareUnsigned(t, r2) < 0)
+            carry++;
+        r2 = t;
+        t = r2 + l7 * other.l2;
+        if (Long.compareUnsigned(t, r2) < 0)
+            carry++;
+        r2 = t;
+        t = r2 + l6 * other.l3;
+        if (Long.compareUnsigned(t, r2) < 0)
+            carry++;
+        r2 = t;
+        t = r2 + l5 * other.l4;
+        if (Long.compareUnsigned(t, r2) < 0)
+            carry++;
+        r2 = t;
+        t = r2 + l4 * other.l5;
+        if (Long.compareUnsigned(t, r2) < 0)
+            carry++;
+        r2 = t;
+        t = r2 + l3 * other.l6;
+        if (Long.compareUnsigned(t, r2) < 0)
+            carry++;
+        r2 = t;
+        t = r2 + l2 * other.l7;
+        if (Long.compareUnsigned(t, r2) < 0)
+            carry++;
+        r2 = t;
+
+        // 第 6 列，位权为 2^384。
+        long r1 = carry;
+        carry = 0;
+        t = r1 + Math.unsignedMultiplyHigh(l7, other.l2);
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+        t = r1 + Math.unsignedMultiplyHigh(l6, other.l3);
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+        t = r1 + Math.unsignedMultiplyHigh(l5, other.l4);
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+        t = r1 + Math.unsignedMultiplyHigh(l4, other.l5);
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+        t = r1 + Math.unsignedMultiplyHigh(l3, other.l6);
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+        t = r1 + Math.unsignedMultiplyHigh(l2, other.l7);
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+        t = r1 + l7 * other.l1;
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+        t = r1 + l6 * other.l2;
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+        t = r1 + l5 * other.l3;
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+        t = r1 + l4 * other.l4;
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+        t = r1 + l3 * other.l5;
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+        t = r1 + l2 * other.l6;
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+        t = r1 + l1 * other.l7;
+        if (Long.compareUnsigned(t, r1) < 0)
+            carry++;
+        r1 = t;
+
+        // 第 7 列，位权为 2^448。
+        // 最高保留列只需回绕加法，向外进位不影响结果。
+        long r0 = carry
+                + Math.unsignedMultiplyHigh(l7, other.l1)
+                + Math.unsignedMultiplyHigh(l6, other.l2)
+                + Math.unsignedMultiplyHigh(l5, other.l3)
+                + Math.unsignedMultiplyHigh(l4, other.l4)
+                + Math.unsignedMultiplyHigh(l3, other.l5)
+                + Math.unsignedMultiplyHigh(l2, other.l6)
+                + Math.unsignedMultiplyHigh(l1, other.l7)
+                + l7 * other.l0
+                + l6 * other.l1
+                + l5 * other.l2
+                + l4 * other.l3
+                + l3 * other.l4
+                + l2 * other.l5
+                + l1 * other.l6
+                + l0 * other.l7;
+
+        return new Int512(r0, r1, r2, r3, r4, r5, r6, r7);
     }
 
     @Override

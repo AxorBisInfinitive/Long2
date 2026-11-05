@@ -156,6 +156,50 @@ class Int1024ArithmeticTest {
     }
 
     @Test
+    void placesUnsignedWordProductsOnBothSidesOfTheKernelBoundary() {
+        BigInteger wordMask = ONE.shiftLeft(64).subtract(ONE);
+        long[] patterns = {1L, -1L, Long.MIN_VALUE, Long.MAX_VALUE};
+        for (int first = 0; first < 16; first++) {
+            for (int second = 0; second < 16; second++) {
+                for (long a : patterns) {
+                    for (long b : patterns) {
+                        BigInteger x = BigInteger.valueOf(a).and(wordMask).shiftLeft(first * 64);
+                        BigInteger y = BigInteger.valueOf(b).and(wordMask).shiftLeft(second * 64);
+                        assertNumber(x.multiply(y), from(x).multiply(from(y)));
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    void transfersMultiBitColumnCarryAcrossThe512BitBoundary() {
+        BigInteger half = ONE.shiftLeft(512), halfMask = half.subtract(ONE);
+        List<BigInteger> lows = List.of(halfMask, halfMask.subtract(ONE), ONE.shiftLeft(511), ONE);
+        List<BigInteger> highs = List.of(BigInteger.ZERO, ONE, halfMask, ONE.shiftLeft(511));
+        for (BigInteger lowA : lows) {
+            for (BigInteger lowB : lows) {
+                for (BigInteger highA : highs) {
+                    for (BigInteger highB : highs) {
+                        Int1024 a = from(highA.shiftLeft(512).or(lowA));
+                        Int1024 b = from(highB.shiftLeft(512).or(lowB));
+                        byte[] beforeA = a.toBytes(), beforeB = b.toBytes();
+                        BigInteger expected = number(a).multiply(number(b));
+                        assertNumber(expected, a.multiply(b));
+                        assertNumber(expected, b.multiply(a));
+                        assertNumber(number(a).pow(2), a.multiply(a));
+                        assertArrayEquals(beforeA, a.toBytes());
+                        assertArrayEquals(beforeB, b.toBytes());
+                    }
+                }
+            }
+        }
+        // 低 512 位全一相乘时，进入第 8 列的进位为 7，而不是一个 bit。
+        assertNumber(halfMask.multiply(halfMask), from(halfMask).multiply(from(halfMask)));
+        assertThrowsExactly(NullPointerException.class, () -> Int1024.ZERO.multiply(null));
+    }
+
+    @Test
     void keepsEqualityHashingAndNullHandlingConsistent() {
         Int1024 value = random(new Random(0x1024E0L));
         Int1024 same = Int1024.of(value.toBytes());
