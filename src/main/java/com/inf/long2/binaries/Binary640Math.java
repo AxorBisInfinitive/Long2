@@ -100,7 +100,7 @@ final class Binary640Math {
                 half > 0 || half == 0 && UnsignedWords.bit(division.quotient(), 0));
     }
 
-    /** kept 独占且至多 616 位，舍入加一与次正规归一化都在最终位权完成。 */
+    /** kept 独占且至少十组，至多 616 位，额外高组为零；舍入与归一化在最终位权完成。 */
     private static Binary640 packRounded(boolean negative, long[] kept, long quantum, boolean increment) {
         if (increment) {
             for (int i = 0; i < kept.length; i++) {
@@ -110,7 +110,7 @@ final class Binary640Math {
             }
         }
         if ((kept[9] & (Binary640.HIDDEN_BIT << 1)) != 0) {
-            for (int i = 0; i < kept.length - 1; i++) {
+            for (int i = 0; i < 9; i++) {
                 kept[i] = (kept[i] >>> 1) | (kept[i + 1] << 63);
             }
             kept[9] >>>= 1;
@@ -148,16 +148,151 @@ final class Binary640Math {
         if (b.isZero()) {
             return a;
         }
-        long[] am = magnitude(a), bm = magnitude(b);
-        long as = a.scaleExponent(), bs = b.scaleExponent();
-        long difference = exponent(am, as) - exponent(bm, bs);
+        long ar = a.getRawLong(0), br = b.getRawLong(0);
+        int ac = (int) ((ar >>> 39) & 0xffffff), bc = (int) ((br >>> 39) & 0xffffff);
+        long atop = (ar & Binary640.FRACTION_MASK) | (ac == 0 ? 0 : Binary640.HIDDEN_BIT);
+        long btop = (br & Binary640.FRACTION_MASK) | (bc == 0 ? 0 : Binary640.HIDDEN_BIT);
+        long as = ac == 0 ? Binary640.QMIN : ac - (long) Binary640.BIAS - 615;
+        long bs = bc == 0 ? Binary640.QMIN : bc - (long) Binary640.BIAS - 615;
+        long ae = as + (ac == 0 ? finiteLength(a, atop) : 616) - 1;
+        long be = bs + (bc == 0 ? finiteLength(b, btop) : 616) - 1;
+        long difference = ae - be;
         if (difference >= 618) {
             return a;
         }
         if (difference <= -618) {
             return subtract ? b.negate() : b;
         }
-        return sum(aneg, am, as, bneg, bm, bs, 20);
+        boolean adding = aneg == bneg;
+        int comparison = 1;
+        if (!adding) {
+            comparison = difference == 0 ? compareFiniteMagnitude(a, b) : Long.compare(ae, be);
+            if (comparison == 0) {
+                return Binary640.ZERO;
+            }
+        }
+        long scale = Math.min(as, bs);
+        int ashift = Math.toIntExact(as - scale), bshift = Math.toIntExact(bs - scale);
+        int capacity = Math.toIntExact((Math.max(ae, be) - scale + 1 + (adding ? 1 : 0) + 63) / 64);
+        long[] result = new long[Math.max(10, capacity)];
+        if (adding) {
+            addFiniteWords(a, atop, ashift, b, btop, bshift, result, capacity);
+        } else if (comparison > 0) {
+            subtractFiniteWords(a, atop, ashift, b, btop, bshift, result, capacity);
+        } else {
+            subtractFiniteWords(b, btop, bshift, a, atop, ashift, result, capacity);
+        }
+        return roundOwnedSum(comparison > 0 ? aneg : bneg, result, scale);
+    }
+
+    /** 加减法独占工作区至少十组，先读取全部舍入信息，再按安全方向原地整理。 */
+    private static Binary640 roundOwnedSum(boolean negative, long[] magnitude, long scale) {
+        int length = UnsignedWords.bitLength(magnitude);
+        if (length == 0) {
+            return Binary640.zero(negative);
+        }
+        long exponent = scale + length - 1;
+        if (exponent > Binary640.FORMAT.maxExponent()) {
+            return Binary640.infinity(negative);
+        }
+        if (exponent < Binary640.QMIN - 1L) {
+            return Binary640.zero(negative);
+        }
+        long quantum = Math.max(exponent - 615, Binary640.QMIN);
+        int discarded = Math.toIntExact(quantum - scale);
+        boolean increment = discarded > 0 && UnsignedWords.bit(magnitude, discarded - 1)
+                && (UnsignedWords.bit(magnitude, discarded) || UnsignedWords.anyLow(magnitude, discarded - 1));
+        if (discarded > 0) {
+            for (int i = 0; i < 10; i++) {
+                magnitude[i] = shiftedWord(magnitude, i, discarded);
+            }
+        } else if (discarded < 0) {
+            for (int i = 9; i >= 0; i--) {
+                magnitude[i] = shiftedWord(magnitude, i, discarded);
+            }
+        }
+        // 原高组已参与移位，必须在全部目标组写完后清除，避免被 packRounded 重新视作有效位。
+        Arrays.fill(magnitude, 10, magnitude.length, 0);
+        return packRounded(negative, magnitude, quantum, increment);
+    }
+
+    /** 有限非零幅值，最高组已经清除编码字段并补入正常数隐含位。 */
+    private static int finiteLength(Binary640 value, long top) {
+        if (top != 0) {
+            return 640 - Long.numberOfLeadingZeros(top);
+        }
+        for (int index = 1; index < 10; index++) {
+            long word = value.getRawLong(index);
+            if (word != 0) {
+                return (10 - index) * 64 - Long.numberOfLeadingZeros(word);
+            }
+        }
+        return 0;
+    }
+
+    /** 有限非零数去掉符号位后的原始编码与幅值顺序一致。 */
+    private static int compareFiniteMagnitude(Binary640 a, Binary640 b) {
+        int comparison = Long.compareUnsigned(a.getRawLong(0) & Long.MAX_VALUE, b.getRawLong(0) & Long.MAX_VALUE);
+        for (int index = 1; comparison == 0 && index < 10; index++) {
+            comparison = Long.compareUnsigned(a.getRawLong(index), b.getRawLong(index));
+        }
+        return comparison;
+    }
+
+    private static long finiteWord(Binary640 value, long top, int index) {
+        return index < 0 || index >= 10 ? 0 : index == 9 ? top : value.getRawLong(9 - index);
+    }
+
+    /** 只左移完整输入幅值，工作区范围外由容量证明为零。 */
+    private static long alignedFiniteWord(Binary640 value, long top, int index, int shift) {
+        int group = index - (shift >>> 6), bits = shift & 63;
+        long low = finiteWord(value, top, group);
+        return bits == 0 ? low : (low << bits) | (finiteWord(value, top, group - 1) >>> (64 - bits));
+    }
+
+    private static void addFiniteWords(Binary640 a, long atop, int ashift,
+            Binary640 b, long btop, int bshift, long[] result, int count) {
+        long carry = 0;
+        if ((ashift | bshift) == 0) {
+            for (int i = 0; i < count; i++) {
+                long av = finiteWord(a, atop, i), bv = finiteWord(b, btop, i);
+                long partial = av + bv;
+                long next = partial + carry;
+                carry = Long.compareUnsigned(partial, av) < 0 || Long.compareUnsigned(next, partial) < 0 ? 1 : 0;
+                result[i] = next;
+            }
+        } else {
+            for (int i = 0; i < count; i++) {
+                long av = alignedFiniteWord(a, atop, i, ashift), bv = alignedFiniteWord(b, btop, i, bshift);
+                long partial = av + bv;
+                long next = partial + carry;
+                carry = Long.compareUnsigned(partial, av) < 0 || Long.compareUnsigned(next, partial) < 0 ? 1 : 0;
+                result[i] = next;
+            }
+        }
+        assert carry == 0;
+    }
+
+    /** a 的幅值不小于 b，结果容量覆盖对齐后的所有输入位。 */
+    private static void subtractFiniteWords(Binary640 a, long atop, int ashift,
+            Binary640 b, long btop, int bshift, long[] result, int count) {
+        long borrow = 0;
+        if ((ashift | bshift) == 0) {
+            for (int i = 0; i < count; i++) {
+                long av = finiteWord(a, atop, i), bv = finiteWord(b, btop, i);
+                long partial = av - bv;
+                result[i] = partial - borrow;
+                borrow = Long.compareUnsigned(av, bv) < 0 || Long.compareUnsigned(partial, borrow) < 0 ? 1 : 0;
+            }
+        } else {
+            for (int i = 0; i < count; i++) {
+                long av = alignedFiniteWord(a, atop, i, ashift), bv = alignedFiniteWord(b, btop, i, bshift);
+                long partial = av - bv;
+                result[i] = partial - borrow;
+                borrow = Long.compareUnsigned(av, bv) < 0 || Long.compareUnsigned(partial, borrow) < 0 ? 1 : 0;
+            }
+        }
+        assert borrow == 0;
     }
 
     /** 对齐范围已由调用方证明，源数组不变，结果只在最终位权上舍入。 */
