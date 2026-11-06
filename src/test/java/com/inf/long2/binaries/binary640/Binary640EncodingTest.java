@@ -92,7 +92,7 @@ class Binary640EncodingTest {
             }
         }
         assertFalse(Binary640.ZERO.equals(null));
-        assertFalse(Binary640.ONE.equals(1L));
+        assertNotEquals(Binary640.ONE, 1L);
     }
 
     @Test

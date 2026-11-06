@@ -1,7 +1,6 @@
 package com.inf.long2.binaries.binary640;
 
 import static com.inf.long2.binaries.binary640.Binary640TestSupport.*;
-import static org.junit.jupiter.api.Assertions.*;
 
 import java.math.BigInteger;
 import java.util.Random;
