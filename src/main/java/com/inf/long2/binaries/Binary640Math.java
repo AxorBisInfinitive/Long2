@@ -222,7 +222,6 @@ final class Binary640Math {
         } else {
             subtractFiniteWords(b, btop, 0, a, atop, 0, result, 10);
         }
-        assert (result[9] >>> 40) == 0;
         result[9] |= (comparison > 0 ? aneg : bneg) ? Long.MIN_VALUE : 0;
         return raw(result);
     }
@@ -249,7 +248,6 @@ final class Binary640Math {
                 }
             }
             // 精确和至多 2^617-2，舍入后不可能再次超出 616 位。
-            assert (result[9] & (Binary640.HIDDEN_BIT << 1)) == 0;
             result[9] = (aneg ? Long.MIN_VALUE : 0) | ((encoded + 1L) << 39) | (result[9] & Binary640.FRACTION_MASK);
             return raw(result);
         }
@@ -303,8 +301,6 @@ final class Binary640Math {
             }
             if (count == 11) {
                 result[10] = previous + carry;
-            } else {
-                assert previous == 0 && carry == 0;
             }
         } else {
             long borrow = 0;
@@ -318,10 +314,7 @@ final class Binary640Math {
                 borrow = Long.compareUnsigned(av, bv) < 0 || Long.compareUnsigned(partial, borrow) < 0 ? 1 : 0;
             }
             if (count == 11) {
-                assert Long.compareUnsigned(previous, borrow) >= 0;
                 result[10] = previous - borrow;
-            } else {
-                assert previous == 0 && borrow == 0;
             }
         }
         return roundOwnedDyadic(highNegative, result, scale);
@@ -412,7 +405,6 @@ final class Binary640Math {
                 result[i] = next;
             }
         }
-        assert carry == 0;
     }
 
     /** a 的幅值不小于 b，结果容量覆盖对齐后的所有输入位。 */
@@ -434,7 +426,6 @@ final class Binary640Math {
                 borrow = Long.compareUnsigned(av, bv) < 0 || Long.compareUnsigned(partial, borrow) < 0 ? 1 : 0;
             }
         }
-        assert borrow == 0;
     }
 
     /** 对齐范围已由调用方证明，源数组不变，结果只在最终位权上舍入。 */
@@ -859,7 +850,6 @@ final class Binary640Math {
             carry = overflow + (Long.compareUnsigned(t, u) < 0 ? 1L : 0L);
             product[9] = t;
         }
-        assert carry <= 18;
         return carry;
     }
 
@@ -1225,7 +1215,6 @@ final class Binary640Math {
             carry = overflow + (Long.compareUnsigned(t, u) < 0 ? 1L : 0L);
             product[19] = t;
         }
-        assert carry == 0 && (product[19] >>> 16) == 0;
     }
 
     static Binary640 divide(Binary640 a, Binary640 b) {

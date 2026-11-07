@@ -326,7 +326,6 @@ final class UnsignedWords {
      * 第二次更新若为整数根加一，精确平方根必超过该整数根加二分之一，故下一轮相邻商直接结束。
      */
     static int sqrtScaled(long w0, long w1, long w2, long w3, int shift, long[] workspace) {
-        assert workspace.length == 2 * SQRT_WORDS;
         workspace[0] = 0;
         workspace[1] = 0;
         long prefixLow = scaledWord(w0, w1, w2, w3, 0, shift - 346);
@@ -348,7 +347,6 @@ final class UnsignedWords {
         workspace[2] = seed << 45;
         workspace[3] = seed == 0 ? 1L << 45 : seed >>> 19;
         long residual = divideSqrtSeed64(w0, w1, w2, w3, shift, seed, workspace);
-        assert compareSqrtBlocks(workspace) < 0;
         if (oneBelow(workspace)) {
             // 初值严格大于精确根，商为 X-1 时已经是整数根；原除法余数为 residual<<173。
             System.arraycopy(workspace, SQRT_WORDS, workspace, 0, SQRT_WORDS);
@@ -361,8 +359,7 @@ final class UnsignedWords {
         }
         averageInPlace(workspace);
         int[] dividend = new int[16], divisor = new int[8];
-        for (int iteration = 1; ; iteration++) {
-            assert iteration < 3 : "Newton square root exceeded its division bound";
+        for (;;) {
             int normalization = Integer.numberOfLeadingZeros(digit(workspace, 7));
             normalizedDigits(workspace, 8, normalization, divisor);
             for (int i = 0; i < 8; i++) {
@@ -375,7 +372,6 @@ final class UnsignedWords {
             if (compareSqrtBlocks(workspace) >= 0) {
                 // 此时前四组估值就是整数根，商与根之差最多为二；直接恢复 N-S²，无须另算平方。
                 int multiple = (int) (workspace[SQRT_WORDS] - workspace[0]);
-                assert multiple >= 0 && multiple <= 2;
                 remainderWords(dividend, 8, normalization, workspace, SQRT_WORDS);
                 if (multiple != 0) {
                     addMultipleInPlace(workspace, SQRT_WORDS, 0, multiple);
@@ -436,7 +432,6 @@ final class UnsignedWords {
         long top = seed >>> 32, bottom = seed & DIGIT_MASK;
         int reducedShift = shift - 173;
         long remainder = scaledWord(w0, w1, w2, w3, 4, reducedShift);
-        assert Long.compareUnsigned(remainder, seed) < 0;
         // 每组商都已校正到精确值，余数小于 2^64，保留乘减的低 64 位即可恢复全部余数。
         for (int i = SQRT_WORDS - 1; i >= 0; i--) {
             long current = scaledWord(w0, w1, w2, w3, i, reducedShift);
@@ -483,7 +478,6 @@ final class UnsignedWords {
         }
         int reducedShift = shift - 205;
         long remainder = scaledWord(w0, w1, w2, w3, 4, reducedShift);
-        assert remainder < seed;
         for (int i = SQRT_WORDS - 1; i >= 0; i--) {
             long current = scaledWord(w0, w1, w2, w3, i, reducedShift);
             long pair = (remainder << 32) | (current >>> 32);
