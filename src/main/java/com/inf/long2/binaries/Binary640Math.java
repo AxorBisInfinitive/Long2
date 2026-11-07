@@ -150,13 +150,34 @@ final class Binary640Math {
         }
         long ar = a.getRawLong(0), br = b.getRawLong(0);
         int ac = (int) ((ar >>> 39) & 0xffffff), bc = (int) ((br >>> 39) & 0xffffff);
+        int encodedDifference = ac - bc;
+        // 混合输入的实际指数间距至少等于编码间距；618 保证二的幂向下相减也不越过舍入中点。
+        if (encodedDifference >= 618) {
+            return a;
+        }
+        if (encodedDifference <= -618) {
+            return subtract ? b.negate() : b;
+        }
         long atop = (ar & Binary640.FRACTION_MASK) | (ac == 0 ? 0 : Binary640.HIDDEN_BIT);
         long btop = (br & Binary640.FRACTION_MASK) | (bc == 0 ? 0 : Binary640.HIDDEN_BIT);
+        if (encodedDifference == 0) {
+            return ac == 0 ? addSubnormal(a, atop, aneg, b, btop, bneg)
+                    : addSameExponent(a, atop, aneg, b, btop, bneg, ac);
+        }
+        if (ac != 0 && bc != 0) {
+            if (encodedDifference > 0 && encodedDifference < 64) {
+                return addNearNormal(a, atop, aneg, b, btop, bneg, encodedDifference, bc - (long) Binary640.BIAS - 615);
+            }
+            if (encodedDifference < 0 && encodedDifference > -64) {
+                return addNearNormal(b, btop, bneg, a, atop, aneg, -encodedDifference, ac - (long) Binary640.BIAS - 615);
+            }
+        }
         long as = ac == 0 ? Binary640.QMIN : ac - (long) Binary640.BIAS - 615;
         long bs = bc == 0 ? Binary640.QMIN : bc - (long) Binary640.BIAS - 615;
         long ae = as + (ac == 0 ? finiteLength(a, atop) : 616) - 1;
         long be = bs + (bc == 0 ? finiteLength(b, btop) : 616) - 1;
         long difference = ae - be;
+        // 编码差不足 618 的混合输入仍可能相距至少 618，必须按实际指数再次判断。
         if (difference >= 618) {
             return a;
         }
@@ -183,6 +204,127 @@ final class Binary640Math {
             subtractFiniteWords(b, btop, bshift, a, atop, ashift, result, capacity);
         }
         return roundOwnedSum(comparison > 0 ? aneg : bneg, result, scale);
+    }
+
+    /** 双次正规输入的精确幅值小于 2^616，在 QMIN 位权上直接对应正常或次正规编码。 */
+    private static Binary640 addSubnormal(Binary640 a, long atop, boolean aneg,
+            Binary640 b, long btop, boolean bneg) {
+        boolean adding = aneg == bneg;
+        int comparison = adding ? 1 : compareFiniteMagnitude(a, b);
+        if (comparison == 0) {
+            return Binary640.ZERO;
+        }
+        long[] result = new long[10];
+        if (adding) {
+            addFiniteWords(a, atop, 0, b, btop, 0, result, 10);
+        } else if (comparison > 0) {
+            subtractFiniteWords(a, atop, 0, b, btop, 0, result, 10);
+        } else {
+            subtractFiniteWords(b, btop, 0, a, atop, 0, result, 10);
+        }
+        assert (result[9] >>> 40) == 0;
+        result[9] |= (comparison > 0 ? aneg : bneg) ? Long.MIN_VALUE : 0;
+        return raw(result);
+    }
+
+    /** 同指数正常数相加恰为 617 位，相减至多 615 位，分别只需单比特舍入或精确归一化。 */
+    private static Binary640 addSameExponent(Binary640 a, long atop, boolean aneg,
+            Binary640 b, long btop, boolean bneg, int encoded) {
+        if (aneg == bneg) {
+            if (encoded == 0xfffffe) {
+                return Binary640.infinity(aneg);
+            }
+            long[] result = new long[10];
+            addFiniteWords(a, atop, 0, b, btop, 0, result, 10);
+            boolean increment = (result[0] & 3) == 3;
+            for (int i = 0; i < 9; i++) {
+                result[i] = (result[i] >>> 1) | (result[i + 1] << 63);
+            }
+            result[9] >>>= 1;
+            if (increment) {
+                for (int i = 0; i < 10; i++) {
+                    if (++result[i] != 0) {
+                        break;
+                    }
+                }
+            }
+            // 精确和至多 2^617-2，舍入后不可能再次超出 616 位。
+            assert (result[9] & (Binary640.HIDDEN_BIT << 1)) == 0;
+            result[9] = (aneg ? Long.MIN_VALUE : 0) | ((encoded + 1L) << 39) | (result[9] & Binary640.FRACTION_MASK);
+            return raw(result);
+        }
+        int comparison = compareFiniteMagnitude(a, b);
+        if (comparison == 0) {
+            return Binary640.ZERO;
+        }
+        boolean negative = comparison > 0 ? aneg : bneg;
+        long[] result = new long[10];
+        if (comparison > 0) {
+            subtractFiniteWords(a, atop, 0, b, btop, 0, result, 10);
+        } else {
+            subtractFiniteWords(b, btop, 0, a, atop, 0, result, 10);
+        }
+        if (encoded == 1) {
+            result[9] |= negative ? Long.MIN_VALUE : 0;
+            return raw(result);
+        }
+        int length = UnsignedWords.bitLength(result);
+        long scale = encoded - (long) Binary640.BIAS - 615;
+        long exponent = scale + length - 1;
+        int shift = (int) Math.min(616 - length, scale - Binary640.QMIN);
+        if (shift != 0) {
+            for (int i = 9; i >= 0; i--) {
+                result[i] = shiftedWord(result, i, -shift);
+            }
+        }
+        long resultEncoded = exponent < Binary640.FORMAT.minExponent() ? 0 : exponent + Binary640.BIAS;
+        result[9] = (negative ? Long.MIN_VALUE : 0) | (resultEncoded << 39) | (result[9] & Binary640.FRACTION_MASK);
+        return raw(result);
+    }
+
+    /** 两侧正常且指数差为 1 至 63，较大项左移，较小项原样读取，完整保存精确结果。 */
+    private static Binary640 addNearNormal(Binary640 high, long highTop, boolean highNegative,
+            Binary640 low, long lowTop, boolean lowNegative, int shift, long scale) {
+        boolean adding = highNegative == lowNegative;
+        int count = (616 + shift + (adding ? 1 : 0) + 63) / 64;
+        long[] result = new long[count];
+        long previous = 0;
+        if (adding) {
+            long carry = 0;
+            for (int i = 0; i < 10; i++) {
+                long source = finiteWord(high, highTop, i);
+                long av = (source << shift) | previous;
+                previous = source >>> (64 - shift);
+                long bv = finiteWord(low, lowTop, i);
+                long partial = av + bv;
+                long next = partial + carry;
+                carry = Long.compareUnsigned(partial, av) < 0 || Long.compareUnsigned(next, partial) < 0 ? 1 : 0;
+                result[i] = next;
+            }
+            if (count == 11) {
+                result[10] = previous + carry;
+            } else {
+                assert previous == 0 && carry == 0;
+            }
+        } else {
+            long borrow = 0;
+            for (int i = 0; i < 10; i++) {
+                long source = finiteWord(high, highTop, i);
+                long av = (source << shift) | previous;
+                previous = source >>> (64 - shift);
+                long bv = finiteWord(low, lowTop, i);
+                long partial = av - bv;
+                result[i] = partial - borrow;
+                borrow = Long.compareUnsigned(av, bv) < 0 || Long.compareUnsigned(partial, borrow) < 0 ? 1 : 0;
+            }
+            if (count == 11) {
+                assert Long.compareUnsigned(previous, borrow) >= 0;
+                result[10] = previous - borrow;
+            } else {
+                assert previous == 0 && borrow == 0;
+            }
+        }
+        return roundOwnedSum(highNegative, result, scale);
     }
 
     /** 加减法独占工作区至少十组，先读取全部舍入信息，再按安全方向原地整理。 */
