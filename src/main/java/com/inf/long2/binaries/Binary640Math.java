@@ -485,10 +485,55 @@ final class Binary640Math {
         long btop = (br & Binary640.FRACTION_MASK) | (bc == 0 ? 0 : Binary640.HIDDEN_BIT);
         long as = ac == 0 ? Binary640.QMIN : ac - (long) Binary640.BIAS - 615;
         long bs = bc == 0 ? Binary640.QMIN : bc - (long) Binary640.BIAS - 615;
-        long[] product = new long[20];
-        long carry = multiplyLowColumns(a, atop, b, btop, product);
-        multiplyHighColumns(a, atop, b, btop, product, carry);
-        return roundOwnedDyadic(negative, product, as + bs);
+        int az = lowZeroGroups(a), bz = lowZeroGroups(b);
+        long scale = as + bs;
+        long[] product;
+        if ((az | bz) != 0) {
+            product = multiplyTrimmed(a, atop, az, b, btop, bz);
+            // 只移除完整零组，剩余乘积的位权精确增加 64*(az+bz)。
+            scale += 64L * (az + bz);
+        } else {
+            product = new long[20];
+            long carry = multiplyLowColumns(a, atop, b, btop, product);
+            multiplyHighColumns(a, atop, b, btop, product, carry);
+        }
+        return roundOwnedDyadic(negative, product, scale);
+    }
+
+    /** 有限非零幅值至多有九个低零组，最高组不得将编码字段当作有效位。 */
+    private static int lowZeroGroups(Binary640 value) {
+        int groups = 0;
+        while (groups < 9 && value.getRawLong(9 - groups) == 0) {
+            groups++;
+        }
+        return groups;
+    }
+
+    /**
+     * az、bz 恰好移除有限非零输入的低零整组；最高有效组由实际幅值确定。
+     * 返回至少十组的独占完整乘积，保留高零组以供原地舍入，输入始终只读。
+     */
+    private static long[] multiplyTrimmed(Binary640 a, long atop, int az, Binary640 b, long btop, int bz) {
+        int alength = (finiteLength(a, atop) + 63) / 64 - az;
+        int blength = (finiteLength(b, btop) + 63) / 64 - bz;
+        long[] product = new long[Math.max(10, alength + blength)];
+        for (int i = 0; i < alength; i++) {
+            long av = finiteWord(a, atop, i + az);
+            long carry = 0;
+            for (int j = 0; j < blength; j++) {
+                long bv = finiteWord(b, btop, j + bz);
+                long low = av * bv;
+                long high = Math.unsignedMultiplyHigh(av, bv);
+                long sum = low + product[i + j];
+                high += Long.compareUnsigned(sum, low) < 0 ? 1L : 0L;
+                long next = sum + carry;
+                high += Long.compareUnsigned(next, sum) < 0 ? 1L : 0L;
+                product[i + j] = next;
+                carry = high;
+            }
+            product[i + blength] = carry;
+        }
+        return product;
     }
 
     /**
