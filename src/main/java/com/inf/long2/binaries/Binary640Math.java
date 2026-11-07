@@ -497,7 +497,65 @@ final class Binary640Math {
             long carry = multiplyLowColumns(a, atop, b, btop, product);
             multiplyHighColumns(a, atop, b, btop, product, carry);
         }
-        return roundOwnedDyadic(negative, product, scale);
+        return roundProduct(negative, product, scale);
+    }
+
+    /**
+     * product 是至少十组的独占完整乘积。先读取全部舍入信息，再整理低十组。
+     * 正常结果已知保留 616 位；低端结果在 QMIN 位权上的整数直接对应零、次正规或最低正常数编码。
+     * 高组不再参与结果编码，无须清零或重新扫描位长。
+     */
+    private static Binary640 roundProduct(boolean negative, long[] product, long scale) {
+        int length = UnsignedWords.bitLength(product);
+        if (length == 0) {
+            return Binary640.zero(negative);
+        }
+        long exponent = scale + length - 1;
+        if (exponent > Binary640.FORMAT.maxExponent()) {
+            return Binary640.infinity(negative);
+        }
+        if (exponent < Binary640.QMIN - 1L) {
+            return Binary640.zero(negative);
+        }
+        boolean lowRange = exponent <= Binary640.FORMAT.minExponent();
+        long quantum = lowRange ? Binary640.QMIN : exponent - 615;
+        int discarded = Math.toIntExact(quantum - scale);
+        boolean increment = discarded > 0 && UnsignedWords.bit(product, discarded - 1)
+                && (UnsignedWords.bit(product, discarded) || UnsignedWords.anyLow(product, discarded - 1));
+        if (discarded > 0) {
+            for (int i = 0; i < 10; i++) {
+                product[i] = shiftedWord(product, i, discarded);
+            }
+        } else if (discarded < 0) {
+            for (int i = 9; i >= 0; i--) {
+                product[i] = shiftedWord(product, i, discarded);
+            }
+        }
+        if (increment) {
+            for (int i = 0; i < 10; i++) {
+                if (++product[i] != 0) {
+                    break;
+                }
+            }
+        }
+        if (lowRange) {
+            // 舍入整数至多为 2^616，该端点直接编码为第二个正常 binade 的起点。
+            product[9] |= negative ? Long.MIN_VALUE : 0;
+            return raw(product);
+        }
+        if ((product[9] & (Binary640.HIDDEN_BIT << 1)) != 0) {
+            for (int i = 0; i < 9; i++) {
+                product[i] = (product[i] >>> 1) | (product[i + 1] << 63);
+            }
+            product[9] >>>= 1;
+            exponent++;
+            if (exponent > Binary640.FORMAT.maxExponent()) {
+                return Binary640.infinity(negative);
+            }
+        }
+        product[9] = (negative ? Long.MIN_VALUE : 0) | ((exponent + Binary640.BIAS) << 39)
+                | (product[9] & Binary640.FRACTION_MASK);
+        return raw(product);
     }
 
     /** 有限非零幅值至多有九个低零组，最高组不得将编码字段当作有效位。 */
