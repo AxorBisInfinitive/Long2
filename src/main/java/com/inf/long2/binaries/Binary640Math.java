@@ -78,8 +78,8 @@ final class Binary640Math {
         }
         int ratioExponent = UnsignedWords.bitLength(numerator) - UnsignedWords.bitLength(denominator);
         int comparison = ratioExponent >= 0
-                ? UnsignedWords.compare(numerator, UnsignedWords.left(denominator, ratioExponent))
-                : UnsignedWords.compare(UnsignedWords.left(numerator, -ratioExponent), denominator);
+                ? UnsignedWords.compareShifted(numerator, denominator, ratioExponent)
+                : -UnsignedWords.compareShifted(denominator, numerator, -ratioExponent);
         long exponent = scale + ratioExponent - (comparison < 0 ? 1 : 0);
         if (exponent > Binary640.FORMAT.maxExponent()) {
             return Binary640.infinity(negative);
@@ -95,7 +95,7 @@ final class Binary640Math {
             denominator = UnsignedWords.left(denominator, Math.toIntExact(-shift));
         }
         UnsignedWords.Division division = UnsignedWords.divide(numerator, denominator);
-        int half = UnsignedWords.compare(UnsignedWords.left(division.remainder(), 1), denominator);
+        int half = -UnsignedWords.compareShifted(denominator, division.remainder(), 1);
         return packRounded(negative, Arrays.copyOf(division.quotient(), 10), quantum,
                 half > 0 || half == 0 && UnsignedWords.bit(division.quotient(), 0));
     }

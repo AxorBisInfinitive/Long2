@@ -73,6 +73,35 @@ final class UnsignedWords {
         return 0;
     }
 
+    /** 比较 a 与 b 左移 shift 位后的值，shift 不为负，不物化移位结果。 */
+    static int compareShifted(long[] a, long[] b, int shift) {
+        int aBits = bitLength(a), bBits = bitLength(b) + shift;
+        if (aBits != bBits) {
+            return Integer.compare(aBits, bBits);
+        }
+        int whole = shift >>> 6, bits = shift & 63;
+        int length = (aBits + 63) >>> 6;
+        for (int index = length - 1; index >= 0; index--) {
+            int result = Long.compareUnsigned(word(a, index), shiftedWord(b, index - whole, bits));
+            if (result != 0) {
+                return result;
+            }
+        }
+        return 0;
+    }
+
+    /** 返回 value 第 index 组与下一组高位拼接后左移 bits 位的结果，bits 为零时只取该组，范围外补零。 */
+    private static long shiftedWord(long[] value, int index, int bits) {
+        if (index < 0) {
+            return 0L;
+        }
+        long low = word(value, index);
+        if (bits == 0) {
+            return low;
+        }
+        return (low << bits) | (index == 0 ? 0L : word(value, index - 1) >>> (64 - bits));
+    }
+
     /** 调用方保证 a 不小于 b，结果不包含额外的符号扩展位。 */
     static long[] subtract(long[] a, long[] b) {
         long[] result = new long[a.length];
