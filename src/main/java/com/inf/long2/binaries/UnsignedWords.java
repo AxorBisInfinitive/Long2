@@ -150,9 +150,14 @@ final class UnsignedWords {
                 return new Division(new long[] {1}, new long[0]);
             }
         }
-        if ((distance == 615 || distance == 616) && numerator.length == 20 && denominator.length == 10
-                && bitLength(denominator) == 616) {
-            return divideWide(numerator, denominator);
+        int denominatorBits = bitLength(denominator);
+        // 616 位除数配 615 或 616 位距离是最常见的形状，定长实现让 C2 展开内层乘减并消去越界检查。
+        if (denominatorBits == 616 && (distance == 615 || distance == 616)) {
+            return divideWideTenGroups(numerator, denominator);
+        }
+        // 单组除数仍走 32 位内核：宽内核的求倒数与规范化开销在单组上不划算。
+        if (distance >= 1 && denominatorBits > 64) {
+            return divideWide(numerator, denominator, distance, denominatorBits);
         }
         long[] quotient = new long[distance / 64 + 1];
         long[] remainder = divideRemainder(numerator, denominator, distance, quotient);
@@ -185,52 +190,22 @@ final class UnsignedWords {
         return bitLength(numerator) - denominatorBits;
     }
 
-    /** 分子为 1231 或 1232 位，除数为 616 位。规范化后仍占二十组和十组，整数商至多 617 位。 */
-    private static Division divideWide(long[] numerator, long[] denominator) {
-        long[] dividend = normalizedWide(numerator), divisor = normalizedWide(denominator);
+    /**
+     * 除数为 616 位、分子比它长 615 或 616 位。规范化后占十组与二十组，商至多 617 位。
+     * 组数与移位取常数，C2 才能展开乘减循环并消去越界检查。
+     */
+    private static Division divideWideTenGroups(long[] numerator, long[] denominator) {
+        long[] dividend = normalizedWide(numerator, 20, 24, 20);
+        long[] divisor = normalizedWide(denominator, 10, 24, 10);
         long[] quotient = new long[10];
         long top = divisor[9], second = divisor[8];
         long reciprocal = wideReciprocal(top);
         // 最高十组小于除数，商的第十一组为零，直接从第十组开始。
         for (int j = 9; j >= 0; j--) {
-            long high = dividend[j + 10], next = dividend[j + 9], lower = dividend[j + 8];
-            long estimate, residual;
-            boolean residualCarry;
-            if (high == top) {
-                estimate = -1L;
-                residual = next + top;
-                residualCarry = Long.compareUnsigned(residual, next) < 0;
-            } else {
-                // Möller–Granlund 2/1。以估商乘积的小数部分判定单组余数是否回绕。
-                long product = high * reciprocal;
-                long fraction = product + next;
-                long carry = Long.compareUnsigned(fraction, product) < 0 ? 1L : 0L;
-                estimate = Math.unsignedMultiplyHigh(high, reciprocal) + high + carry + 1;
-                residual = next - estimate * top;
-                if (Long.compareUnsigned(residual, fraction) > 0) {
-                    estimate--;
-                    residual += top;
-                }
-                if (Long.compareUnsigned(residual, top) >= 0) {
-                    estimate++;
-                    residual -= top;
-                }
-                residualCarry = false;
-            }
-            while (!residualCarry) {
-                long productHigh = Math.unsignedMultiplyHigh(estimate, second);
-                int comparison = Long.compareUnsigned(productHigh, residual);
-                if (comparison < 0 || comparison == 0 && Long.compareUnsigned(estimate * second, lower) <= 0) {
-                    break;
-                }
+            long estimate = trialQuotient(dividend[j + 10], dividend[j + 9], dividend[j + 8], top, second, reciprocal);
+            if (estimate != 0 && subtractProductWide(dividend, j, divisor, estimate, 10)) {
                 estimate--;
-                long previous = residual;
-                residual += top;
-                residualCarry = Long.compareUnsigned(residual, previous) < 0;
-            }
-            if (estimate != 0 && subtractProductWide(dividend, j, divisor, estimate)) {
-                estimate--;
-                addBackWide(dividend, j, divisor);
+                addBackWide(dividend, j, divisor, 10);
             }
             quotient[j] = estimate;
         }
@@ -243,14 +218,103 @@ final class UnsignedWords {
         return new Division(trim(quotient), trim(remainder));
     }
 
-    /** 调用方保证左移 24 位后仍装得进原有分组数。 */
-    private static long[] normalizedWide(long[] value) {
-        long[] result = new long[value.length];
+    /**
+     * 除数多于一组，分子位长比除数多 distance 位。组数与移位由位长决定，带高零组的输入同样成立。
+     * 规范化后除数恰好填满 groups 组，商至多 {@code distance / 64 + 1} 组。
+     */
+    private static Division divideWide(long[] numerator, long[] denominator, int distance, int denominatorBits) {
+        int groups = (denominatorBits + 63) / 64;
+        int shift = groups * 64 - denominatorBits;
+        int quotientGroups = distance / 64 + 1;
+        int numeratorGroups = (denominatorBits + distance + 63) / 64;
+        long[] divisor = normalizedWide(denominator, groups, shift, groups);
+        long[] dividend = normalizedWide(numerator, numeratorGroups, shift, quotientGroups + groups + 1);
+        long[] quotient = new long[quotientGroups];
+        long top = divisor[groups - 1], second = divisor[groups - 2];
+        long reciprocal = wideReciprocal(top);
+        // 最高 groups 组小于除数，商在更高位为零，直接从最高商组开始。
+        for (int j = quotientGroups - 1; j >= 0; j--) {
+            long estimate = trialQuotient(dividend[j + groups], dividend[j + groups - 1],
+                    dividend[j + groups - 2], top, second, reciprocal);
+            if (estimate != 0 && subtractProductWide(dividend, j, divisor, estimate, groups)) {
+                estimate--;
+                addBackWide(dividend, j, divisor, groups);
+            }
+            quotient[j] = estimate;
+        }
+
+        long[] remainder = new long[groups];
+        if (shift == 0) {
+            System.arraycopy(dividend, 0, remainder, 0, groups);
+        } else {
+            for (int i = 0; i < groups - 1; i++) {
+                remainder[i] = (dividend[i] >>> shift) | (dividend[i + 1] << (64 - shift));
+            }
+            remainder[groups - 1] = dividend[groups - 1] >>> shift;
+        }
+        return new Division(trim(quotient), trim(remainder));
+    }
+
+    /**
+     * Möller–Granlund 2/1 估商，用高两组与更高一组把单组商修正到精确值。
+     * 除数的最高组已规范化，估商最多比精确值大一，由第二组比较与完整乘减后的回加兜住。
+     */
+    private static long trialQuotient(long high, long next, long lower, long top, long second, long reciprocal) {
+        long estimate, residual;
+        boolean residualCarry;
+        if (high == top) {
+            estimate = -1L;
+            residual = next + top;
+            residualCarry = Long.compareUnsigned(residual, next) < 0;
+        } else {
+            // 以估商乘积的小数部分判定单组余数是否回绕。
+            long product = high * reciprocal;
+            long fraction = product + next;
+            long carry = Long.compareUnsigned(fraction, product) < 0 ? 1L : 0L;
+            estimate = Math.unsignedMultiplyHigh(high, reciprocal) + high + carry + 1;
+            residual = next - estimate * top;
+            if (Long.compareUnsigned(residual, fraction) > 0) {
+                estimate--;
+                residual += top;
+            }
+            if (Long.compareUnsigned(residual, top) >= 0) {
+                estimate++;
+                residual -= top;
+            }
+            residualCarry = false;
+        }
+        while (!residualCarry) {
+            long productHigh = Math.unsignedMultiplyHigh(estimate, second);
+            int comparison = Long.compareUnsigned(productHigh, residual);
+            if (comparison < 0 || comparison == 0 && Long.compareUnsigned(estimate * second, lower) <= 0) {
+                break;
+            }
+            estimate--;
+            long previous = residual;
+            residual += top;
+            residualCarry = Long.compareUnsigned(residual, previous) < 0;
+        }
+        return estimate;
+    }
+
+    /**
+     * 左移 shift 位写入恰好 capacity 组，只读源数组的前 length 组。
+     * 除数的容量取 groups，此时移位不产生进位；分子的容量多出一组承接进位。
+     */
+    private static long[] normalizedWide(long[] value, int length, int shift, int capacity) {
+        long[] result = new long[capacity];
+        if (shift == 0) {
+            System.arraycopy(value, 0, result, 0, length);
+            return result;
+        }
         long carry = 0;
-        for (int i = 0; i < value.length; i++) {
-            long word = value[i];
-            result[i] = (word << 24) | carry;
-            carry = word >>> 40;
+        for (int i = 0; i < length; i++) {
+            long current = value[i];
+            result[i] = (current << shift) | carry;
+            carry = current >>> (64 - shift);
+        }
+        if (length < capacity) {
+            result[length] = carry;
         }
         return result;
     }
@@ -265,9 +329,9 @@ final class UnsignedWords {
         return (high << 32) | low;
     }
 
-    private static boolean subtractProductWide(long[] dividend, int offset, long[] divisor, long estimate) {
+    private static boolean subtractProductWide(long[] dividend, int offset, long[] divisor, long estimate, int length) {
         long borrow = 0;
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < length; i++) {
             long word = divisor[i];
             long low = estimate * word, high = Math.unsignedMultiplyHigh(estimate, word);
             long current = dividend[offset + i];
@@ -277,20 +341,20 @@ final class UnsignedWords {
             long incomingBorrow = Long.compareUnsigned(difference, borrow) < 0 ? 1L : 0L;
             borrow = high + productBorrow + incomingBorrow;
         }
-        long high = dividend[offset + 10];
-        dividend[offset + 10] = high - borrow;
+        long high = dividend[offset + length];
+        dividend[offset + length] = high - borrow;
         return Long.compareUnsigned(high, borrow) < 0;
     }
 
-    private static void addBackWide(long[] dividend, int offset, long[] divisor) {
+    private static void addBackWide(long[] dividend, int offset, long[] divisor, int length) {
         long carry = 0;
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < length; i++) {
             long current = dividend[offset + i];
             long sum = current + divisor[i], result = sum + carry;
             dividend[offset + i] = result;
             carry = Long.compareUnsigned(sum, current) < 0 || Long.compareUnsigned(result, sum) < 0 ? 1L : 0L;
         }
-        dividend[offset + 10] += carry;
+        dividend[offset + length] += carry;
     }
 
     /** 规范化后最高除数组至少为 2^31，各轮以高两组估商，再用完整乘减恢复小于除数的余数。 */
