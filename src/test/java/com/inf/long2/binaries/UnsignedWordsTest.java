@@ -511,6 +511,19 @@ class UnsignedWordsTest {
     }
 
     @Test
+    void checksSubtractProductWithAWholeTwoDigitBorrow() {
+        BigInteger base = BigInteger.ONE.shiftLeft(32);
+        BigInteger square = base.pow(2);
+        BigInteger divisor = base.shiftRight(1).multiply(square)
+                .add(base.shiftRight(1).add(BigInteger.ONE).multiply(base)).add(base.subtract(BigInteger.ONE));
+        BigInteger quotient = base.subtract(BigInteger.ONE);
+        BigInteger product = quotient.multiply(divisor);
+        // 低两组被除数为零，第二组的低半积与传入借位之和大于基数。
+        BigInteger numerator = product.add(product.negate().mod(square));
+        assertDivision(numerator, divisor, 0);
+    }
+
+    @Test
     void checksUnsignedSingleDigitDivisorsAndTheirMultiDigitNeighbors() {
         BigInteger base = BigInteger.ONE.shiftLeft(32);
         BigInteger[] divisors = {BigInteger.ONE, BigInteger.TWO, BigInteger.valueOf(3),

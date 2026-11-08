@@ -59,4 +59,21 @@ class Binary640DivisionTest {
         assertRaw(Binary640.POSITIVE_INFINITY, Binary640.MAX_VALUE.divide(Binary640.ONE.nextDown()));
         assertRaw(Binary640.NEGATIVE_INFINITY, Binary640.MAX_VALUE.divide(Binary640.ONE.nextDown().negate()));
     }
+
+    @Test
+    void checksShortOddDivisorsAcrossTheUnsignedDigitBoundary() {
+        BigInteger magnitude = ONE.shiftLeft(616).subtract(ONE);
+        for (long digit : new long[] {1, 3, 0x7fff_ffffL, 0x8000_0001L, 0xffff_fffdL, 0xffff_ffffL, 0x1_0000_0001L}) {
+            BigInteger d = BigInteger.valueOf(digit);
+            for (int exponent : new int[] {-1, 0, 1, 32}) {
+                Binary640 b = dyadic(false, d, exponent - (long) d.bitLength() + 1);
+                for (Binary640 a : new Binary640[] {Binary640.MIN_VALUE, Binary640.MIN_NORMAL.nextDown(),
+                        Binary640.MIN_NORMAL, dyadic(false, magnitude, -615), Binary640.MAX_VALUE}) {
+                    check(a, b);
+                    check(a.negate(), b);
+                }
+            }
+            check(dyadic(false, magnitude, QMIN), dyadic(false, d, QMIN));
+        }
+    }
 }

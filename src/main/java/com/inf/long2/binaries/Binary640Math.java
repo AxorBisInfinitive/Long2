@@ -1335,8 +1335,12 @@ final class Binary640Math {
         int numeratorZeros = trailingZeros(numerator), denominatorZeros = trailingZeros(denominator);
         // 两侧移除的位均为零，各自位权精确增加相应位数。
         long scale = a.scaleExponent() - b.scaleExponent() + numeratorZeros - denominatorZeros;
-        return roundRational(negative, removeLowZeros(numerator, numeratorZeros),
-                removeLowZeros(denominator, denominatorZeros), scale);
+        numerator = removeLowZeros(numerator, numeratorZeros);
+        denominator = removeLowZeros(denominator, denominatorZeros);
+        if (denominator.length == 1 && denominator[0] == 1) {
+            return roundDyadic(negative, numerator, scale);
+        }
+        return roundRational(negative, numerator, denominator, scale);
     }
 
     /** 输入为有限非零幅值，最低非零组一定存在。 */

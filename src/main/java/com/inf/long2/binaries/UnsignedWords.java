@@ -241,11 +241,17 @@ final class UnsignedWords {
     }
 
     private static long[] divideOneDigit(long[] numerator, long divisor, int length, long[] quotient) {
+        long reciprocal = Long.divideUnsigned(-1L, divisor);
         long remainder = 0;
         for (int i = length - 1; i >= 0; i--) {
             long pair = (remainder << 32) | (digit(numerator, i) & DIGIT_MASK);
-            long current = Long.divideUnsigned(pair, divisor);
+            // 高半积给出的商至多低一，校正前的余数小于 2*divisor。
+            long current = Math.unsignedMultiplyHigh(pair, reciprocal);
             remainder = pair - current * divisor;
+            if (remainder >= divisor) {
+                current++;
+                remainder -= divisor;
+            }
             if (quotient != null && current != 0) {
                 quotient[i >>> 1] |= current << ((i & 1) * 32);
             }
@@ -280,10 +286,12 @@ final class UnsignedWords {
     private static boolean subtractProduct(int[] dividend, int offset, int[] divisor, long estimate) {
         long borrow = 0;
         for (int i = 0; i < divisor.length; i++) {
-            long product = estimate * (divisor[i] & DIGIT_MASK) + borrow;
-            long low = product & DIGIT_MASK, current = dividend[offset + i] & DIGIT_MASK;
-            dividend[offset + i] = (int) (current - low);
-            borrow = (product >>> 32) + (current < low ? 1 : 0);
+            long product = estimate * (divisor[i] & DIGIT_MASK);
+            long current = dividend[offset + i] & DIGIT_MASK;
+            long difference = current - (product & DIGIT_MASK) - borrow;
+            dividend[offset + i] = (int) difference;
+            // 有符号差值可跨过两个基数，算术右移保留完整借位。
+            borrow = (product >>> 32) - (difference >> 32);
         }
         long high = dividend[offset + divisor.length] & DIGIT_MASK;
         dividend[offset + divisor.length] = (int) (high - borrow);
