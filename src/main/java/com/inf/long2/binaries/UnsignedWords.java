@@ -284,6 +284,9 @@ final class UnsignedWords {
 
     /** 在独占分子窗口内减去完整试商乘积，返回最高组是否发生借位。 */
     private static boolean subtractProduct(int[] dividend, int offset, int[] divisor, long estimate) {
+        if (divisor.length == 20) {
+            return subtractProduct20(dividend, offset, divisor, estimate);
+        }
         long borrow = 0;
         for (int i = 0; i < divisor.length; i++) {
             long product = estimate * (divisor[i] & DIGIT_MASK);
@@ -296,6 +299,41 @@ final class UnsignedWords {
         long high = dividend[offset + divisor.length] & DIGIT_MASK;
         dividend[offset + divisor.length] = (int) (high - borrow);
         return high < borrow;
+    }
+
+    /** 两个十组区间各自从零借位开始，最后把低段的完整借位补入高段。 */
+    private static boolean subtractProduct20(int[] dividend, int offset, int[] divisor, long estimate) {
+        int middle = offset + 10, end = offset + 20;
+        long lowBorrow = 0, highBorrow = 0;
+        for (int i = 0; i < 10; i++) {
+            long lowProduct = estimate * (divisor[i] & DIGIT_MASK);
+            long highProduct = estimate * (divisor[i + 10] & DIGIT_MASK);
+            long low = (dividend[offset + i] & DIGIT_MASK) - (lowProduct & DIGIT_MASK) - lowBorrow;
+            long high = (dividend[middle + i] & DIGIT_MASK) - (highProduct & DIGIT_MASK) - highBorrow;
+            dividend[offset + i] = (int) low;
+            dividend[middle + i] = (int) high;
+            lowBorrow = (lowProduct >>> 32) - (low >> 32);
+            highBorrow = (highProduct >>> 32) - (high >> 32);
+        }
+
+        long difference = (dividend[middle] & DIGIT_MASK) - lowBorrow;
+        dividend[middle] = (int) difference;
+        if (difference < 0) {
+            // 补传从高段的第二组开始，穿过整个高段才使最终借位增加一。
+            int i = middle + 1;
+            for (; i < end; i++) {
+                if (dividend[i]-- != 0) {
+                    break;
+                }
+            }
+            if (i == end) {
+                highBorrow++;
+            }
+        }
+
+        long high = dividend[end] & DIGIT_MASK;
+        dividend[end] = (int) (high - highBorrow);
+        return high < highBorrow;
     }
 
     private static void addBack(int[] dividend, int offset, int[] divisor) {

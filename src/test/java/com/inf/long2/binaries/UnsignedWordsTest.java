@@ -524,6 +524,28 @@ class UnsignedWordsTest {
     }
 
     @Test
+    void checksTwentyGroupBorrowMergeAndAddBack() {
+        BigInteger base = BigInteger.ONE.shiftLeft(32);
+        BigInteger block = base.pow(10);
+        BigInteger high = block.shiftRight(1).add(BigInteger.valueOf(3));
+        for (BigInteger low : new BigInteger[] {BigInteger.ONE, block.subtract(BigInteger.ONE)}) {
+            BigInteger divisor = high.multiply(block).add(low);
+            for (BigInteger q : new BigInteger[] {BigInteger.TWO, base.subtract(BigInteger.ONE)}) {
+                BigInteger numerator = q.multiply(high).multiply(block);
+                // 试商为 q 时高段预减结果全零，低段借位必须传到额外组并触发回加。
+                assertEquals(q.subtract(BigInteger.ONE), numerator.divide(divisor));
+                assertDivision(numerator, divisor, 0);
+                for (int groups : new int[] {1, 5, 9}) {
+                    BigInteger partial = numerator.add(block.multiply(base.pow(groups)));
+                    assertEquals(q, partial.divide(divisor));
+                    assertDivision(partial, divisor, 1);
+                }
+            }
+            assertDivision(divisor.multiply(base).subtract(BigInteger.ONE), divisor, 2);
+        }
+    }
+
+    @Test
     void checksUnsignedSingleDigitDivisorsAndTheirMultiDigitNeighbors() {
         BigInteger base = BigInteger.ONE.shiftLeft(32);
         BigInteger[] divisors = {BigInteger.ONE, BigInteger.TWO, BigInteger.valueOf(3),
