@@ -1331,7 +1331,33 @@ final class Binary640Math {
         if (a.isZero() || b.isInfinite()) {
             return Binary640.zero(negative);
         }
-        return roundRational(negative, magnitude(a), magnitude(b), a.scaleExponent() - b.scaleExponent());
+        long[] numerator = magnitude(a), denominator = magnitude(b);
+        int numeratorZeros = trailingZeros(numerator), denominatorZeros = trailingZeros(denominator);
+        // 两侧移除的位均为零，各自位权精确增加相应位数。
+        long scale = a.scaleExponent() - b.scaleExponent() + numeratorZeros - denominatorZeros;
+        return roundRational(negative, removeLowZeros(numerator, numeratorZeros),
+                removeLowZeros(denominator, denominatorZeros), scale);
+    }
+
+    /** 输入为有限非零幅值，最低非零组一定存在。 */
+    private static int trailingZeros(long[] magnitude) {
+        int group = 0;
+        while (magnitude[group] == 0) {
+            group++;
+        }
+        return group * 64 + Long.numberOfTrailingZeros(magnitude[group]);
+    }
+
+    private static long[] removeLowZeros(long[] magnitude, int zeros) {
+        if (zeros == 0) {
+            return magnitude;
+        }
+        int bits = UnsignedWords.bitLength(magnitude) - zeros;
+        long[] compact = new long[(bits + 63) / 64];
+        for (int i = 0; i < compact.length; i++) {
+            compact[i] = shiftedWord(magnitude, i, zeros);
+        }
+        return compact;
     }
 
     static Binary640 remainder(Binary640 a, Binary640 b, boolean nearest) {

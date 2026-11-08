@@ -201,6 +201,7 @@ final class UnsignedWords {
         int divisorLength = divisor.length;
         long top = divisor[divisorLength - 1] & DIGIT_MASK;
         long second = divisor[divisorLength - 2] & DIGIT_MASK;
+        long reciprocal = Long.divideUnsigned(-1L, top);
         for (int j = dividendLength - divisorLength; j >= 0; j--) {
             long high = dividend[j + divisorLength] & DIGIT_MASK;
             long next = dividend[j + divisorLength - 1] & DIGIT_MASK;
@@ -211,8 +212,13 @@ final class UnsignedWords {
                 residual = next + top;
             } else {
                 long pair = (high << 32) | next;
-                estimate = Long.divideUnsigned(pair, top);
+                // reciprocal = floor((2^64-1)/top)，高半积给出的商至多低一，余数小于 2*top。
+                estimate = Math.unsignedMultiplyHigh(pair, reciprocal);
                 residual = pair - estimate * top;
+                if (residual >= top) {
+                    estimate++;
+                    residual -= top;
+                }
             }
             // residual 达到基数后，右侧已超过任意两组乘积，不再构造会丢失最高位的 pair。
             long lower = dividend[j + divisorLength - 2] & DIGIT_MASK;
