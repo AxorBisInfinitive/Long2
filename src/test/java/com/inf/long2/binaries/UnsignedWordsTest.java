@@ -546,6 +546,49 @@ class UnsignedWordsTest {
     }
 
     @Test
+    void checksWideDivisionForBothFullPrecisionDistances() {
+        BigInteger hidden = BigInteger.ONE.shiftLeft(615);
+        BigInteger full = hidden.shiftLeft(1).subtract(BigInteger.ONE);
+        BigInteger word = BigInteger.ONE.shiftLeft(64);
+        boolean shorter = false, longer = false;
+        for (BigInteger divisor : new BigInteger[] {hidden, hidden.add(BigInteger.ONE),
+                hidden.setBit(551).setBit(0), full.subtract(BigInteger.ONE), full}) {
+            for (BigInteger q : new BigInteger[] {hidden, hidden.add(word).subtract(BigInteger.ONE), hidden.add(word),
+                    full, full.add(BigInteger.ONE), full.add(BigInteger.TWO)}) {
+                for (BigInteger r : new BigInteger[] {BigInteger.ZERO, BigInteger.ONE, divisor.shiftRight(1),
+                        divisor.subtract(BigInteger.ONE)}) {
+                    BigInteger numerator = divisor.multiply(q).add(r);
+                    int distance = numerator.bitLength() - divisor.bitLength();
+                    if (distance == 615 || distance == 616) {
+                        assertDivision(numerator, divisor, 0);
+                        shorter |= distance == 615;
+                        longer |= distance == 616;
+                    }
+                }
+            }
+            // 试商连续钳制到分组上界，或因除数末组而高估一。
+            assertDivision(divisor.shiftLeft(616).subtract(BigInteger.ONE), divisor, 0);
+            assertDivision(divisor.multiply(hidden).subtract(BigInteger.ONE), divisor, 0);
+        }
+        assertTrue(shorter && longer);
+    }
+
+    @Test
+    void checksTwoDigitDivisorsAtTheNormalizedPrefixExtremes() {
+        BigInteger base = BigInteger.ONE.shiftLeft(32);
+        BigInteger minimum = BigInteger.ONE.shiftLeft(63), maximum = base.pow(2).subtract(BigInteger.ONE);
+        for (BigInteger divisor : new BigInteger[] {minimum, minimum.add(BigInteger.ONE), minimum.add(base),
+                maximum.subtract(BigInteger.ONE), maximum}) {
+            for (BigInteger q : new BigInteger[] {BigInteger.ONE, base.subtract(BigInteger.TWO), base.subtract(BigInteger.ONE),
+                    base, base.add(BigInteger.ONE), maximum}) {
+                for (BigInteger r : new BigInteger[] {BigInteger.ZERO, BigInteger.ONE, divisor.subtract(BigInteger.ONE)}) {
+                    assertDivision(divisor.multiply(q).add(r), divisor, 0);
+                }
+            }
+        }
+    }
+
+    @Test
     void checksUnsignedSingleDigitDivisorsAndTheirMultiDigitNeighbors() {
         BigInteger base = BigInteger.ONE.shiftLeft(32);
         BigInteger[] divisors = {BigInteger.ONE, BigInteger.TWO, BigInteger.valueOf(3),

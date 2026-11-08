@@ -150,6 +150,10 @@ final class UnsignedWords {
                 return new Division(new long[] {1}, new long[0]);
             }
         }
+        if ((distance == 615 || distance == 616) && numerator.length == 20 && denominator.length == 10
+                && bitLength(denominator) == 616) {
+            return divideWide(numerator, denominator);
+        }
         long[] quotient = new long[distance / 64 + 1];
         long[] remainder = divideRemainder(numerator, denominator, distance, quotient);
         return new Division(trim(quotient), remainder);
@@ -179,6 +183,114 @@ final class UnsignedWords {
             throw new ArithmeticException("Unsigned division by zero");
         }
         return bitLength(numerator) - denominatorBits;
+    }
+
+    /** 分子为 1231 或 1232 位，除数为 616 位。规范化后仍占二十组和十组，整数商至多 617 位。 */
+    private static Division divideWide(long[] numerator, long[] denominator) {
+        long[] dividend = normalizedWide(numerator), divisor = normalizedWide(denominator);
+        long[] quotient = new long[10];
+        long top = divisor[9], second = divisor[8];
+        long reciprocal = wideReciprocal(top);
+        // 最高十组小于除数，商的第十一组为零，直接从第十组开始。
+        for (int j = 9; j >= 0; j--) {
+            long high = dividend[j + 10], next = dividend[j + 9], lower = dividend[j + 8];
+            long estimate, residual;
+            boolean residualCarry;
+            if (high == top) {
+                estimate = -1L;
+                residual = next + top;
+                residualCarry = Long.compareUnsigned(residual, next) < 0;
+            } else {
+                // Möller–Granlund 2/1。以估商乘积的小数部分判定单组余数是否回绕。
+                long product = high * reciprocal;
+                long fraction = product + next;
+                long carry = Long.compareUnsigned(fraction, product) < 0 ? 1L : 0L;
+                estimate = Math.unsignedMultiplyHigh(high, reciprocal) + high + carry + 1;
+                residual = next - estimate * top;
+                if (Long.compareUnsigned(residual, fraction) > 0) {
+                    estimate--;
+                    residual += top;
+                }
+                if (Long.compareUnsigned(residual, top) >= 0) {
+                    estimate++;
+                    residual -= top;
+                }
+                residualCarry = false;
+            }
+            while (!residualCarry) {
+                long productHigh = Math.unsignedMultiplyHigh(estimate, second);
+                int comparison = Long.compareUnsigned(productHigh, residual);
+                if (comparison < 0 || comparison == 0 && Long.compareUnsigned(estimate * second, lower) <= 0) {
+                    break;
+                }
+                estimate--;
+                long previous = residual;
+                residual += top;
+                residualCarry = Long.compareUnsigned(residual, previous) < 0;
+            }
+            if (estimate != 0 && subtractProductWide(dividend, j, divisor, estimate)) {
+                estimate--;
+                addBackWide(dividend, j, divisor);
+            }
+            quotient[j] = estimate;
+        }
+
+        long[] remainder = new long[10];
+        for (int i = 0; i < 9; i++) {
+            remainder[i] = (dividend[i] >>> 24) | (dividend[i + 1] << 40);
+        }
+        remainder[9] = dividend[9] >>> 24;
+        return new Division(trim(quotient), trim(remainder));
+    }
+
+    /** 调用方保证左移 24 位后仍装得进原有分组数。 */
+    private static long[] normalizedWide(long[] value) {
+        long[] result = new long[value.length];
+        long carry = 0;
+        for (int i = 0; i < value.length; i++) {
+            long word = value[i];
+            result[i] = (word << 24) | carry;
+            carry = word >>> 40;
+        }
+        return result;
+    }
+
+    /** floor((2^128-1)/top)-2^64 等于无符号双组数 (~top, -1) 除以 top 的商。 */
+    private static long wideReciprocal(long top) {
+        long upper = top >>> 32, lower = top & DIGIT_MASK;
+        long residual = ~top;
+        long high = divideTwoDigitQuotient(residual, DIGIT_MASK, upper, lower);
+        residual = ((residual << 32) | DIGIT_MASK) - high * top;
+        long low = divideTwoDigitQuotient(residual, DIGIT_MASK, upper, lower);
+        return (high << 32) | low;
+    }
+
+    private static boolean subtractProductWide(long[] dividend, int offset, long[] divisor, long estimate) {
+        long borrow = 0;
+        for (int i = 0; i < 10; i++) {
+            long word = divisor[i];
+            long low = estimate * word, high = Math.unsignedMultiplyHigh(estimate, word);
+            long current = dividend[offset + i];
+            long difference = current - low;
+            dividend[offset + i] = difference - borrow;
+            long productBorrow = Long.compareUnsigned(current, low) < 0 ? 1L : 0L;
+            long incomingBorrow = Long.compareUnsigned(difference, borrow) < 0 ? 1L : 0L;
+            borrow = high + productBorrow + incomingBorrow;
+        }
+        long high = dividend[offset + 10];
+        dividend[offset + 10] = high - borrow;
+        return Long.compareUnsigned(high, borrow) < 0;
+    }
+
+    private static void addBackWide(long[] dividend, int offset, long[] divisor) {
+        long carry = 0;
+        for (int i = 0; i < 10; i++) {
+            long current = dividend[offset + i];
+            long sum = current + divisor[i], result = sum + carry;
+            dividend[offset + i] = result;
+            carry = Long.compareUnsigned(sum, current) < 0 || Long.compareUnsigned(result, sum) < 0 ? 1L : 0L;
+        }
+        dividend[offset + 10] += carry;
     }
 
     /** 规范化后最高除数组至少为 2^31，各轮以高两组估商，再用完整乘减恢复小于除数的余数。 */
