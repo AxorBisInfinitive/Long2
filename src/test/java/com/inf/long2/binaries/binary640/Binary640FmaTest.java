@@ -28,13 +28,43 @@ class Binary640FmaTest {
         for (int difference : differences) {
             for (int i = 0; i < 6; i++) {
                 Binary640 a = random(random, false), b = random(random, false);
-                var product = Binary640Reference.decode(a.multiply(b));
-                long pe = product.scale() + product.magnitude().bitLength() - 1;
+                var left = Binary640Reference.decode(a);
+                var right = Binary640Reference.decode(b);
+                long pe = left.scale() + right.scale() + left.magnitude().multiply(right.magnitude()).bitLength() - 1;
                 Binary640 c = Binary640.ONE.nextUp().scalb(pe - difference);
                 for (Binary640 addend : new Binary640[] {c, c.negate()}) {
                     byte[] before = a.toBytes();
                     assertRaw(Binary640Reference.fma(a, b, addend), a.fma(b, addend));
                     assertArrayEquals(before, a.toBytes());
+                }
+            }
+        }
+    }
+
+    @Test
+    void preservesRoundingAtTheAddendDominanceBoundary() {
+        Binary640 a = Binary640.of(-1.5);
+        Binary640 b = Binary640.of(1.5);
+        Binary640 c = Binary640.ONE;
+        // The product exponent is one above the sum of operand exponents.
+        assertRaw(c.nextDown(), a.fma(b.scalb(-618), c));
+        assertRaw(c, a.fma(b.scalb(-619), c));
+        assertRaw(c, a.fma(b.scalb(-620), c));
+    }
+
+    @Test
+    void alignsLowZeroGroupProductsAtTheirAdjustedScale() {
+        // Mixed and dense products have the same leading exponent but different low word positions.
+        Binary640 shortValue = Binary640.of(1.5);
+        Binary640 denseValue = Binary640.ONE.nextUp();
+        for (Binary640 a : new Binary640[] {shortValue, denseValue}) {
+            for (Binary640 b : new Binary640[] {shortValue, denseValue}) {
+                Binary640 cancellation = Binary640Reference.multiply(a, b).negate();
+                assertRaw(Binary640Reference.fma(a, b, cancellation), a.fma(b, cancellation));
+                for (int exponent : new int[] {-65, -64, -63, -1, 0, 1, 63, 64, 65}) {
+                    Binary640 addend = denseValue.scalb(exponent);
+                    assertRaw(Binary640Reference.fma(a, b, addend), a.fma(b, addend));
+                    assertRaw(Binary640Reference.fma(a, b, addend.negate()), a.fma(b, addend.negate()));
                 }
             }
         }

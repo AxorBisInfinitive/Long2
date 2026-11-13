@@ -428,22 +428,28 @@ final class Binary640Math {
         }
     }
 
-    /** 对齐范围已由调用方证明，源数组不变，结果只在最终位权上舍入。 */
-    private static Binary640 sum(boolean aneg, long[] a, long as, boolean bneg, long[] b, long bs, int capacity) {
+    /** 对齐范围已由调用方证明，a 是独占乘积，结果只在最终位权上舍入。 */
+    private static Binary640 sum(boolean aneg, long[] a, long as, long ae,
+            boolean bneg, long[] b, long bs, long be) {
         long scale = Math.min(as, bs);
         int ashift = Math.toIntExact(as - scale), bshift = Math.toIntExact(bs - scale);
+        boolean adding = aneg == bneg;
+        long span = Math.max(ae, be) - scale + 1;
+        int count = (int) ((span + (adding ? 1 : 0) + 63) / 64);
         int comparison = 1;
-        if (aneg != bneg) {
-            comparison = compareAligned(a, ashift, b, bshift, capacity);
+        if (!adding) {
+            comparison = ae == be ? compareAligned(a, ashift, b, bshift, count) : Long.compare(ae, be);
             if (comparison == 0) {
                 return Binary640.ZERO;
             }
         }
-        long[] result = new long[capacity];
+        // a 为本次 FMA 独占的乘积，未移位时低组写入不会覆盖后续读取。
+        int capacity = Math.max(10, count);
+        long[] result = ashift == 0 && a.length == capacity ? a : new long[capacity];
         long carry = 0;
-        for (int i = 0; i < capacity; i++) {
+        for (int i = 0; i < count; i++) {
             long av = shiftedWord(a, i, -ashift), bv = shiftedWord(b, i, -bshift);
-            if (aneg == bneg) {
+            if (adding) {
                 long partial = av + bv;
                 long next = partial + carry;
                 carry = Long.compareUnsigned(partial, av) < 0 || Long.compareUnsigned(next, partial) < 0 ? 1 : 0;
@@ -455,7 +461,7 @@ final class Binary640Math {
                 carry = Long.compareUnsigned(greater, smaller) < 0 || Long.compareUnsigned(partial, carry) < 0 ? 1 : 0;
             }
         }
-        return roundDyadic(comparison > 0 ? aneg : bneg, result, scale);
+        return roundOwnedDyadic(comparison > 0 ? aneg : bneg, result, scale);
     }
 
     private static int compareAligned(long[] a, int ashift, long[] b, int bshift, int capacity) {
@@ -1423,13 +1429,32 @@ final class Binary640Math {
         if (a.isZero() || b.isZero()) {
             return c.isZero() ? Binary640.zero(negative && c.signBit()) : c;
         }
-        long[] product = UnsignedWords.multiply(magnitude(a), magnitude(b));
-        long scale = a.scaleExponent() + b.scaleExponent();
-        if (c.isZero()) {
+        boolean addendZero = c.isZero();
+        long ce = 0;
+        if (!addendZero) {
+            ce = finiteExponent(c);
+            long minimumProductExponent = finiteExponent(a) + finiteExponent(b);
+            // 精确乘积的最高指数至多比两侧指数和大一。
+            if (ce - minimumProductExponent >= 619) {
+                return c;
+            }
+        }
+        long atop = a.getSignificandLong(0), btop = b.getSignificandLong(0);
+        int az = lowZeroGroups(a), bz = lowZeroGroups(b);
+        long scale = a.scaleExponent() + b.scaleExponent() + 64L * (az + bz);
+        long[] product;
+        if ((az | bz) != 0) {
+            product = multiplyTrimmed(a, atop, az, b, btop, bz);
+        } else {
+            product = new long[20];
+            long carry = multiplyLowColumns(a, atop, b, btop, product);
+            multiplyHighColumns(a, atop, b, btop, product, carry);
+        }
+        if (addendZero) {
             return roundDyadic(negative, product, scale);
         }
         long[] cm = magnitude(c);
-        long pe = exponent(product, scale), ce = exponent(cm, c.scaleExponent());
+        long pe = exponent(product, scale);
         if (pe >= Binary640.FORMAT.maxExponent() + 2L) {
             return Binary640.infinity(negative);
         }
@@ -1440,7 +1465,13 @@ final class Binary640Math {
         if (difference >= 1233) {
             return productWithTail(negative, product, scale, pe, negative == c.signBit());
         }
-        return sum(negative, product, scale, c.signBit(), cm, c.scaleExponent(), 29);
+        return sum(negative, product, scale, pe, c.signBit(), cm, c.scaleExponent(), ce);
+    }
+
+    /** 有限非零数的实际最高位指数，次正规数用有效位长计算。 */
+    private static long finiteExponent(Binary640 value) {
+        long scale = value.scaleExponent();
+        return scale + finiteLength(value, value.getSignificandLong(0)) - 1;
     }
 
     /** 非零尾项小于乘积网格间距，只在精确中点决定向哪一侧舍入。 */
