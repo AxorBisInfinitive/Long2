@@ -1563,41 +1563,54 @@ final class Binary640Math {
         for (int i = 0; i < radicand.length; i++) {
             radicand[i] = shiftedWord(magnitude, i, -shift);
         }
-        long[] root = new long[10], remainder = new long[10], trial = new long[10];
-        for (int pair = 615; pair >= 0; pair--) {
-            shiftInPlace(remainder, 2);
-            remainder[0] |= (radicand[pair / 32] >>> ((pair & 31) * 2)) & 3;
-            System.arraycopy(root, 0, trial, 0, root.length);
-            shiftInPlace(trial, 2);
-            trial[0] |= 1;
-            boolean subtract = UnsignedWords.compare(remainder, trial) >= 0;
-            if (subtract) {
-                subtractInPlace(remainder, trial);
-            }
-            shiftInPlace(root, 1);
-            if (subtract) {
-                root[0] |= 1;
-            }
+        // 高 127 或 128 位整数根加一，给出严格上界。零位模式代表种子 2^64。
+        long prefixRoot = UnsignedWords.sqrtUnsigned128(shiftedWord(radicand, 0, 1104),
+                shiftedWord(radicand, 1, 1104));
+        long seed = prefixRoot + 1;
+        long[] root = seed == 0 ? UnsignedWords.left(new long[] {1}, 616)
+                : UnsignedWords.left(new long[] {seed}, 552);
+        // 首轮的除数是 seed * 2^552；先移掉分子的低位，整数商保持不变。
+        long[] quotient = seed == 0 ? sqrtHigh(radicand, 616)
+                : UnsignedWords.divide(sqrtHigh(radicand, 552), new long[] {seed}).quotient();
+        root = sqrtHigh(addSqrtWords(root, quotient), 1);
+        for (int i = 1; i < 4; i++) {
+            quotient = UnsignedWords.divide(radicand, root).quotient();
+            root = sqrtHigh(addSqrtWords(root, quotient), 1);
         }
-        // N=S²+R，中点平方为 S²+S+1/4，整数 N 向上舍入恰好等价于 R>S。
+        // 四轮后根为 floor(sqrt(N)) 或其后继。至多减一，平方同步减去 2*root-1。
+        long[] square = UnsignedWords.multiply(root, root);
+        if (UnsignedWords.compare(square, radicand) > 0) {
+            root = UnsignedWords.subtract(root, new long[] {1});
+            long[] difference = addSqrtWords(UnsignedWords.left(root, 1), new long[] {1});
+            square = UnsignedWords.subtract(square, difference);
+        }
+        long[] remainder = UnsignedWords.subtract(radicand, square);
+        // N=S²+R，中点平方为 S²+S+1/4，向上舍入恰好等价于 R>S。
         return packRounded(false, root, quantum, UnsignedWords.compare(remainder, root) > 0);
     }
 
-    private static void shiftInPlace(long[] words, int bits) {
-        long carry = 0;
-        for (int i = 0; i < words.length; i++) {
-            long word = words[i];
-            words[i] = (word << bits) | carry;
-            carry = word >>> (64 - bits);
+    /** 输入非空时去掉指定低位，并保留其余完整幅值。 */
+    private static long[] sqrtHigh(long[] value, int distance) {
+        int count = (UnsignedWords.bitLength(value) - distance + 63) / 64;
+        long[] high = new long[count];
+        for (int i = 0; i < count; i++) {
+            high[i] = shiftedWord(value, i, distance);
         }
+        return high;
     }
 
-    private static void subtractInPlace(long[] target, long[] value) {
-        long borrow = 0;
-        for (int i = 0; i < target.length; i++) {
-            long word = target[i], difference = word - value[i];
-            target[i] = difference - borrow;
-            borrow = Long.compareUnsigned(word, value[i]) < 0 || Long.compareUnsigned(difference, borrow) < 0 ? 1 : 0;
+    private static long[] addSqrtWords(long[] a, long[] b) {
+        int count = Math.max(a.length, b.length);
+        long[] sum = new long[count + 1];
+        long carry = 0;
+        for (int i = 0; i < count; i++) {
+            long aw = UnsignedWords.word(a, i), bw = UnsignedWords.word(b, i);
+            long partial = aw + bw;
+            long result = partial + carry;
+            carry = Long.compareUnsigned(partial, aw) < 0 || Long.compareUnsigned(result, partial) < 0 ? 1 : 0;
+            sum[i] = result;
         }
+        sum[count] = carry;
+        return UnsignedWords.trim(sum);
     }
 }

@@ -42,6 +42,24 @@ class Binary640SqrtTest {
     }
 
     @Test
+    void roundsBothSidesOfRootMidpointsAndHandlesAnAllOnesPrefix() {
+        BigInteger hidden = ONE.shiftLeft(615);
+        BigInteger last = hidden.shiftLeft(1).subtract(ONE);
+        for (BigInteger root : new BigInteger[] {hidden, hidden.add(ONE), hidden.add(ONE.shiftLeft(308)),
+                last.subtract(ONE), last}) {
+            BigInteger twiceMidpoint = root.shiftLeft(1).add(ONE);
+            for (int quantum : new int[] {-616, -615, 0}) {
+                Binary640 atMidpoint = dyadic(false, twiceMidpoint.multiply(twiceMidpoint), 2L * quantum - 2);
+                for (Binary640 input : new Binary640[] {atMidpoint.nextDown(), atMidpoint, atMidpoint.nextUp()}) {
+                    assertRaw(Binary640Reference.sqrt(input), input.sqrt());
+                }
+            }
+        }
+        Binary640 allOnes = dyadic(false, last, -614);
+        assertRaw(Binary640Reference.sqrt(allOnes), allOnes.sqrt());
+    }
+
+    @Test
     void handlesSpecialValuesAndExtremeFiniteRoots() {
         assertRaw(Binary640.of(2L),Binary640.of(4L).sqrt());
         assertRaw(Binary640.NEGATIVE_ZERO,Binary640.NEGATIVE_ZERO.sqrt());
