@@ -40,6 +40,45 @@ class Binary640RemainderTest {
     }
 
     @Test
+    void comparesHalfDivisorsAtNormalAndSubnormalBoundaries() {
+        for (Binary640 half : new Binary640[] {Binary640.MIN_VALUE, Binary640.MIN_NORMAL.scalb(-1),
+                Binary640.MIN_NORMAL, Binary640.ONE.nextUp()}) {
+            Binary640 divisor = half.scalb(1);
+            for (Binary640 magnitude : new Binary640[] {half.nextDown(), half, half.nextUp()}) {
+                for (Binary640 dividend : new Binary640[] {magnitude, magnitude.negate()}) {
+                    checkBothRemainders(dividend, divisor);
+                    checkBothRemainders(dividend, divisor.negate());
+                }
+            }
+        }
+    }
+
+    @Test
+    void checksQuotientParityForDenseAndTrailingZeroDivisors() {
+        for (Binary640 divisor : new Binary640[] {Binary640.ONE, Binary640.ONE.nextUp(),
+                Binary640.ONE.nextUp().nextUp(), Binary640.of(1.5), Binary640.MIN_VALUE.scalb(63),
+                Binary640.MIN_VALUE.scalb(64)}) {
+            for (int gap : new int[] {0, 1, 63, 64, 615, 616, 617, 618, 1024, 65536}) {
+                Binary640 dividend = divisor.nextUp().scalb(gap);
+                checkBothRemainders(dividend, divisor);
+                checkBothRemainders(dividend.negate(), divisor);
+            }
+        }
+        Binary640 half = Binary640.of(1.5).scalb(-1);
+        for (int quotient : new int[] {0, 1, 2, 3, 4, 5}) {
+            Binary640 divisor = Binary640.of(1.5);
+            Binary640 dividend = Binary640.of(quotient).fma(divisor, half);
+            checkBothRemainders(dividend, divisor);
+            checkBothRemainders(dividend.negate(), divisor);
+        }
+    }
+
+    private static void checkBothRemainders(Binary640 dividend, Binary640 divisor) {
+        assertRaw(Binary640Reference.remainder(dividend, divisor, false), dividend.remainder(divisor));
+        assertRaw(Binary640Reference.remainder(dividend, divisor, true), dividend.ieeeRemainder(divisor));
+    }
+
+    @Test
     void checksSpecialValuesAndSignedZeroRemainders() {
         double[] values = {Double.NaN, Double.NEGATIVE_INFINITY, -3, -0.0, 0.0, 3, Double.POSITIVE_INFINITY};
         for (double a : values) {

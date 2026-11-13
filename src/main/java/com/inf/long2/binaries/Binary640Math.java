@@ -1377,22 +1377,32 @@ final class Binary640Math {
         if (a.isZero() || b.isInfinite()) {
             return a;
         }
-        long[] am = magnitude(a), bm = magnitude(b);
-        long as = a.scaleExponent(), bs = b.scaleExponent();
-        long ae = exponent(am, as), be = exponent(bm, bs);
-        if (ae + (nearest ? 1 : 0) < be) {
+        if (nearest ? atMostHalf(a, b) : compareFiniteMagnitude(a, b) < 0) {
             return a;
         }
+        long[] am = magnitude(a), bm = magnitude(b);
+        long as = a.scaleExponent(), bs = b.scaleExponent();
         long difference = as - bs, scale;
         long[] remainder;
         boolean odd;
         if (difference >= 0) {
-            long[] modulus = nearest ? UnsignedWords.left(bm, 1) : bm;
-            long[] reduced = difference <= 616
-                    ? UnsignedWords.remainder(UnsignedWords.left(am, (int) difference), modulus)
-                    : UnsignedWords.remainder(UnsignedWords.multiply(am, UnsignedWords.powerOfTwoMod(difference, modulus)), modulus);
-            odd = nearest && UnsignedWords.compare(reduced, bm) >= 0;
-            remainder = odd ? UnsignedWords.subtract(reduced, bm) : reduced;
+            if (difference <= 616) {
+                long[] numerator = UnsignedWords.left(am, (int) difference);
+                long[] quotientLow = nearest ? new long[1] : null;
+                remainder = UnsignedWords.remainder(numerator, bm, quotientLow);
+                odd = nearest && (quotientLow[0] & 1) != 0;
+            } else if (nearest) {
+                // The divisor has at most 615 trailing zeros, all covered by the numerator shift.
+                int zeros = trailingZeros(bm);
+                long[] modulus = removeLowZeros(bm, zeros);
+                long[] reduced = modularRemainder(am, difference - zeros, modulus);
+                // The shifted numerator is even and the reduced divisor is odd.
+                odd = UnsignedWords.bit(reduced, 0);
+                remainder = UnsignedWords.left(reduced, zeros);
+            } else {
+                remainder = modularRemainder(am, difference, bm);
+                odd = false;
+            }
             scale = bs;
         } else {
             // 通过实际指数比较后，仍需对齐的除数最多只比被除数多一位。
@@ -1406,13 +1416,61 @@ final class Binary640Math {
         }
         boolean negative = a.signBit();
         if (nearest) {
-            int half = UnsignedWords.compare(UnsignedWords.left(remainder, 1), bm);
+            int half = -UnsignedWords.compareShifted(bm, remainder, 1);
             if (half > 0 || half == 0 && odd) {
                 remainder = UnsignedWords.subtract(bm, remainder);
                 negative = !negative;
             }
         }
         return roundDyadic(negative, remainder, scale);
+    }
+
+    private static long[] modularRemainder(long[] magnitude, long shift, long[] modulus) {
+        long[] power = prefixPowerOfTwoMod(shift, modulus);
+        return UnsignedWords.remainder(UnsignedWords.multiply(magnitude, power), modulus);
+    }
+
+    /** The exponent is nonnegative. Seed with the largest prefix known to give 2^prefix < modulus. */
+    private static long[] prefixPowerOfTwoMod(long exponent, long[] modulus) {
+        int bits = UnsignedWords.bitLength(modulus);
+        if (bits == 1) {
+            return new long[0];
+        }
+        long prefix = exponent;
+        int suffix = 0;
+        while (prefix > bits - 2) {
+            prefix >>>= 1;
+            suffix++;
+        }
+        long[] result = UnsignedWords.left(new long[] {1}, (int) prefix);
+        for (int i = suffix - 1; i >= 0; i--) {
+            result = UnsignedWords.remainder(UnsignedWords.multiply(result, result), modulus);
+            if (((exponent >>> i) & 1) != 0 && result.length != 0) {
+                result = UnsignedWords.left(result, 1);
+                if (UnsignedWords.compare(result, modulus) >= 0) {
+                    result = UnsignedWords.subtract(result, modulus);
+                }
+            }
+        }
+        return result;
+    }
+
+    /** Both operands are finite and nonzero. Compare 2*|a| with |b| without rounding or arrays. */
+    private static boolean atMostHalf(Binary640 a, Binary640 b) {
+        long atop = a.getSignificandLong(0), btop = b.getSignificandLong(0);
+        int al = finiteLength(a, atop), bl = finiteLength(b, btop);
+        long twiceAExponent = a.scaleExponent() + al, bExponent = b.scaleExponent() + bl - 1;
+        if (twiceAExponent != bExponent) {
+            return twiceAExponent < bExponent;
+        }
+        for (int i = 9; i >= 0; i--) {
+            int comparison = Long.compareUnsigned(alignedFiniteWord(a, atop, i, 616 - al),
+                    alignedFiniteWord(b, btop, i, 616 - bl));
+            if (comparison != 0) {
+                return comparison < 0;
+            }
+        }
+        return true;
     }
 
     static Binary640 fma(Binary640 a, Binary640 b, Binary640 c) {

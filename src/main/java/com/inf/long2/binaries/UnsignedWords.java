@@ -193,9 +193,17 @@ final class UnsignedWords {
         return new Division(trim(quotient), remainder);
     }
 
-    /** 与 divide 共用分组试商，省去完整商及 Division 的构造。 */
+    /** Return only the residue. */
     static long[] remainder(long[] numerator, long[] denominator) {
+        return remainder(numerator, denominator, null);
+    }
+
+    /** If requested, also write the low word of the corrected quotient. */
+    static long[] remainder(long[] numerator, long[] denominator, long[] quotientLow) {
         int distance = divisionDistance(numerator, denominator);
+        if (quotientLow != null) {
+            quotientLow[0] = 0;
+        }
         if (distance < 0) {
             return numerator;
         }
@@ -204,11 +212,20 @@ final class UnsignedWords {
             if (comparison < 0) {
                 return numerator;
             }
-            if (comparison == 0) {
-                return new long[0];
+            if (quotientLow != null) {
+                quotientLow[0] = 1;
             }
+            return comparison == 0 ? new long[0] : subtract(numerator, denominator);
         }
-        return divideRemainder(numerator, denominator, distance, null);
+        int denominatorBits = bitLength(denominator);
+        if (denominatorBits == 616 && (distance == 615 || distance == 616)) {
+            return reduceWideTenGroups(numerator, denominator, quotientLow);
+        }
+        if (denominatorBits > 64) {
+            return reduceWide(numerator, denominator, distance, denominatorBits, quotientLow);
+        }
+        // The 32-bit kernel is retained for short divisors.
+        return divideRemainder(numerator, denominator, distance, quotientLow);
     }
 
     private static int divisionDistance(long[] numerator, long[] denominator) {
@@ -224,9 +241,14 @@ final class UnsignedWords {
      * 组数与移位取常数，C2 才能展开乘减循环并消去越界检查。
      */
     private static Division divideWideTenGroups(long[] numerator, long[] denominator) {
+        long[] quotient = new long[10];
+        long[] remainder = reduceWideTenGroups(numerator, denominator, quotient);
+        return new Division(trim(quotient), remainder);
+    }
+
+    private static long[] reduceWideTenGroups(long[] numerator, long[] denominator, long[] quotient) {
         long[] dividend = normalizedWide(numerator, 20, 24, 20);
         long[] divisor = normalizedWide(denominator, 10, 24, 10);
-        long[] quotient = new long[10];
         long top = divisor[9], second = divisor[8];
         long reciprocal = wideReciprocal(top);
         // 最高十组小于除数，商的第十一组为零，直接从第十组开始。
@@ -236,7 +258,9 @@ final class UnsignedWords {
                 estimate--;
                 addBackWide(dividend, j, divisor, 10);
             }
-            quotient[j] = estimate;
+            if (quotient != null && j < quotient.length) {
+                quotient[j] = estimate;
+            }
         }
 
         long[] remainder = new long[10];
@@ -244,7 +268,7 @@ final class UnsignedWords {
             remainder[i] = (dividend[i] >>> 24) | (dividend[i + 1] << 40);
         }
         remainder[9] = dividend[9] >>> 24;
-        return new Division(trim(quotient), trim(remainder));
+        return trim(remainder);
     }
 
     /**
@@ -252,13 +276,19 @@ final class UnsignedWords {
      * 规范化后除数恰好填满 groups 组，商至多 {@code distance / 64 + 1} 组。
      */
     private static Division divideWide(long[] numerator, long[] denominator, int distance, int denominatorBits) {
+        long[] quotient = new long[distance / 64 + 1];
+        long[] remainder = reduceWide(numerator, denominator, distance, denominatorBits, quotient);
+        return new Division(trim(quotient), remainder);
+    }
+
+    private static long[] reduceWide(long[] numerator, long[] denominator, int distance,
+            int denominatorBits, long[] quotient) {
         int groups = (denominatorBits + 63) / 64;
         int shift = groups * 64 - denominatorBits;
         int quotientGroups = distance / 64 + 1;
         int numeratorGroups = (denominatorBits + distance + 63) / 64;
         long[] divisor = normalizedWide(denominator, groups, shift, groups);
         long[] dividend = normalizedWide(numerator, numeratorGroups, shift, quotientGroups + groups + 1);
-        long[] quotient = new long[quotientGroups];
         long top = divisor[groups - 1], second = divisor[groups - 2];
         long reciprocal = wideReciprocal(top);
         // 最高 groups 组小于除数，商在更高位为零，直接从最高商组开始。
@@ -269,7 +299,9 @@ final class UnsignedWords {
                 estimate--;
                 addBackWide(dividend, j, divisor, groups);
             }
-            quotient[j] = estimate;
+            if (quotient != null && j < quotient.length) {
+                quotient[j] = estimate;
+            }
         }
 
         long[] remainder = new long[groups];
@@ -281,7 +313,7 @@ final class UnsignedWords {
             }
             remainder[groups - 1] = dividend[groups - 1] >>> shift;
         }
-        return new Division(trim(quotient), trim(remainder));
+        return trim(remainder);
     }
 
     /**
@@ -439,7 +471,7 @@ final class UnsignedWords {
                 estimate--;
                 addBack(dividend, j, divisor);
             }
-            if (quotient != null && estimate != 0) {
+            if (quotient != null && offset + (j >>> 1) < quotient.length) {
                 quotient[offset + (j >>> 1)] |= estimate << ((j & 1) * 32);
             }
         }
@@ -457,7 +489,7 @@ final class UnsignedWords {
                 current++;
                 remainder -= divisor;
             }
-            if (quotient != null && current != 0) {
+            if (quotient != null && (i >>> 1) < quotient.length) {
                 quotient[i >>> 1] |= current << ((i & 1) * 32);
             }
         }
