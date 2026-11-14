@@ -42,7 +42,7 @@ class Binary640MultiplyLowZeroTest {
 
     @Test
     void checksCompleteTrimmedProductsForEveryOccupiedGroupWindow() throws ReflectiveOperationException {
-        Class<?> math = Class.forName("com.inf.long2.binaries.Binary640Arithmetic");
+        Class<?> math = Class.forName("com.inf.long2.binaries.binary640.Binary640Arithmetic");
         Method zeros = math.getDeclaredMethod("lowZeroGroups", Binary640.class);
         Method kernel = math.getDeclaredMethod("multiplyTrimmed", Binary640.class, long.class, int.class,
                 Binary640.class, long.class, int.class);

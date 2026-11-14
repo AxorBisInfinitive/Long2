@@ -58,7 +58,7 @@ class Binary640MultiplyOptimizationTest {
 
     @Test
     void checksEveryFullProductColumnBeforeRounding() throws ReflectiveOperationException {
-        Class<?> math = Class.forName("com.inf.long2.binaries.Binary640Arithmetic");
+        Class<?> math = Class.forName("com.inf.long2.binaries.binary640.Binary640Arithmetic");
         Method low = math.getDeclaredMethod("multiplyLowColumns", Binary640.class, long.class,
                 Binary640.class, long.class, long[].class);
         Method high = math.getDeclaredMethod("multiplyHighColumns", Binary640.class, long.class,

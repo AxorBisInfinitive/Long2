@@ -11,6 +11,8 @@ import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 
+import com.inf.long2.binaries.internal.UnsignedWords;
+
 class UnsignedWordsTest {
     private record ScaledRoot(long[] workspace) {
         long[] value() {

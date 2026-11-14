@@ -1,20 +1,23 @@
-package com.inf.long2.binaries;
+package com.inf.long2.binaries.binary256;
 
-import static com.inf.long2.binaries.Binary256.BIAS;
+import com.inf.long2.binaries.Binary256;
+import com.inf.long2.binaries.internal.UnsignedWords;
+
 import static com.inf.long2.binaries.Binary256.FORMAT;
-import static com.inf.long2.binaries.Binary256.FRACTION_MASK;
-import static com.inf.long2.binaries.Binary256.HIDDEN_BIT;
-import static com.inf.long2.binaries.Binary256.QMIN;
-import static com.inf.long2.binaries.Binary256.infinity;
-import static com.inf.long2.binaries.Binary256.zero;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.BIAS;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.FRACTION_MASK;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.HIDDEN_BIT;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.QMIN;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.infinity;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.zero;
 
 /** 将低组在前的整数幅值按最近偶数规则舍入并编码为 Binary256。 */
-final class Binary256Rounding {
+public final class Binary256Rounding {
     private Binary256Rounding() {
     }
 
     /** 最终位权同时考虑精度和次正规下界，只在该位权上舍入一次。 */
-    static Binary256 fromDyadic(boolean negative, long[] magnitude, long scale) {
+    public static Binary256 fromDyadic(boolean negative, long[] magnitude, long scale) {
         int length = UnsignedWords.bitLength(magnitude);
         if (length == 0) {
             return zero(negative);
@@ -102,7 +105,7 @@ final class Binary256Rounding {
         return (low >>> bits) | (high << (64 - bits));
     }
 
-    static long shiftedWord(long w0, long w1, long w2, long w3, int index, int distance) {
+    public static long shiftedWord(long w0, long w1, long w2, long w3, int index, int distance) {
         int group = index + (distance >> 6), bits = distance & 63;
         long low = fourWord(w0, w1, w2, w3, group);
         return bits == 0 ? low : (low >>> bits) | (fourWord(w0, w1, w2, w3, group + 1) << (64 - bits));
@@ -118,14 +121,14 @@ final class Binary256Rounding {
         };
     }
 
-    static int bitLength(long w0, long w1, long w2, long w3) {
+    public static int bitLength(long w0, long w1, long w2, long w3) {
         return w3 != 0 ? 256 - Long.numberOfLeadingZeros(w3)
                 : w2 != 0 ? 192 - Long.numberOfLeadingZeros(w2)
                 : w1 != 0 ? 128 - Long.numberOfLeadingZeros(w1) : 64 - Long.numberOfLeadingZeros(w0);
     }
 
     /** 幅值最多 237 位；increment 表示最终舍入加一，额外进位归一化后再判断上溢。 */
-    static Binary256 packRounded(boolean negative, long w0, long w1, long w2, long w3,
+    public static Binary256 packRounded(boolean negative, long w0, long w1, long w2, long w3,
             long scale, boolean increment) {
         if (increment && ++w0 == 0 && ++w1 == 0 && ++w2 == 0) {
             w3++;

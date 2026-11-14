@@ -1,4 +1,4 @@
-package com.inf.long2.binaries;
+package com.inf.long2.binaries.internal;
 
 import java.util.Arrays;
 
@@ -6,7 +6,7 @@ import java.util.Arrays;
  * 无符号幅值的最低 long 组位于索引零，规范化幅值的零使用空数组；分段工作区按各方法约定保留高零组。
  * 返回结果的运算不修改输入；原地辅助方法只接受调用方独占的工作区。
  */
-final class UnsignedWords {
+public final class UnsignedWords {
     private static final long DIGIT_MASK = 0xffff_ffffL;
     private static final long DIGIT_BASE = 0x1_0000_0000L;
     private static final int SQRT_WORDS = 4;
@@ -14,10 +14,10 @@ final class UnsignedWords {
     private UnsignedWords() {
     }
 
-    record Division(long[] quotient, long[] remainder) {
+    public record Division(long[] quotient, long[] remainder) {
     }
 
-    static long[] trim(long[] value) {
+    public static long[] trim(long[] value) {
         int length = length(value);
         return length == value.length ? value : Arrays.copyOf(value, length);
     }
@@ -30,22 +30,22 @@ final class UnsignedWords {
         return length;
     }
 
-    static long word(long[] value, int index) {
+    public static long word(long[] value, int index) {
         return index < value.length ? value[index] : 0L;
     }
 
-    static int bitLength(long[] value) {
+    public static int bitLength(long[] value) {
         int length = length(value);
         return length == 0 ? 0 : (length - 1) * 64 + 64 - Long.numberOfLeadingZeros(value[length - 1]);
     }
 
-    static boolean bit(long[] value, long index) {
+    public static boolean bit(long[] value, long index) {
         return index >= 0 && index / 64 < value.length
                 && (value[(int) (index / 64)] & (1L << (index & 63))) != 0;
     }
 
     /** 检查低 count 位，不按数组宽度对 count 取模。 */
-    static boolean anyLow(long[] value, long count) {
+    public static boolean anyLow(long[] value, long count) {
         if (count <= 0) {
             return false;
         }
@@ -59,7 +59,7 @@ final class UnsignedWords {
         return whole < value.length && bits != 0 && (value[whole] & ((1L << bits) - 1)) != 0;
     }
 
-    static int compare(long[] a, long[] b) {
+    public static int compare(long[] a, long[] b) {
         int al = length(a), bl = length(b);
         if (al != bl) {
             return Integer.compare(al, bl);
@@ -74,7 +74,7 @@ final class UnsignedWords {
     }
 
     /** 比较 a 与 b 左移 shift 位后的值，shift 不为负，不物化移位结果。 */
-    static int compareShifted(long[] a, long[] b, int shift) {
+    public static int compareShifted(long[] a, long[] b, int shift) {
         int aBits = bitLength(a), bBits = bitLength(b) + shift;
         if (aBits != bBits) {
             return Integer.compare(aBits, bBits);
@@ -103,7 +103,7 @@ final class UnsignedWords {
     }
 
     /** 调用方保证 a 不小于 b，结果不包含额外的符号扩展位。 */
-    static long[] subtract(long[] a, long[] b) {
+    public static long[] subtract(long[] a, long[] b) {
         long[] result = new long[a.length];
         long borrow = 0;
         for (int i = 0; i < a.length; i++) {
@@ -115,7 +115,7 @@ final class UnsignedWords {
         return trim(result);
     }
 
-    static long[] left(long[] value, int count) {
+    public static long[] left(long[] value, int count) {
         if (count == 0 || value.length == 0) {
             return value;
         }
@@ -131,7 +131,7 @@ final class UnsignedWords {
     }
 
     /** 保留低 count 位，结果可能借用输入，但不会修改输入。 */
-    static long[] lowBits(long[] value, int count) {
+    public static long[] lowBits(long[] value, int count) {
         if (count == 0) {
             return new long[0];
         }
@@ -146,7 +146,7 @@ final class UnsignedWords {
         return trim(result);
     }
 
-    static long[] multiply(long[] a, long[] b) {
+    public static long[] multiply(long[] a, long[] b) {
         long[] result = new long[a.length + b.length];
         for (int i = 0; i < a.length; i++) {
             long carry = 0;
@@ -165,7 +165,7 @@ final class UnsignedWords {
         return trim(result);
     }
 
-    static Division divide(long[] numerator, long[] denominator) {
+    public static Division divide(long[] numerator, long[] denominator) {
         int distance = divisionDistance(numerator, denominator);
         if (distance < 0) {
             return new Division(new long[0], numerator);
@@ -194,12 +194,12 @@ final class UnsignedWords {
     }
 
     /** Return only the residue. */
-    static long[] remainder(long[] numerator, long[] denominator) {
+    public static long[] remainder(long[] numerator, long[] denominator) {
         return remainder(numerator, denominator, null);
     }
 
     /** If requested, also write the low word of the corrected quotient. */
-    static long[] remainder(long[] numerator, long[] denominator, long[] quotientLow) {
+    public static long[] remainder(long[] numerator, long[] denominator, long[] quotientLow) {
         int distance = divisionDistance(numerator, denominator);
         if (quotientLow != null) {
             quotientLow[0] = 0;
@@ -263,7 +263,7 @@ final class UnsignedWords {
      * 开方专用的只求商入口。首轮后的估值为 616 位，分子为 1231 或 1232 位。
      * 三个工作区由调用方独占，每轮完整覆盖。
      */
-    static void sqrtQuotient(long[] radicand, long[] root, long[] dividend, long[] divisor, long[] quotient) {
+    public static void sqrtQuotient(long[] radicand, long[] root, long[] dividend, long[] divisor, long[] quotient) {
         normalizeWideInto(radicand, 20, 24, dividend);
         normalizeWideInto(root, 10, 24, divisor);
         divideWideTenGroupsInPlace(dividend, divisor, quotient);
@@ -632,7 +632,7 @@ final class UnsignedWords {
      * 初值误差不超过 2^173，两次 Newton 更新后的正误差分别小于 2^109 和 2^-19，向下取整不会低于整数根。
      * 第二次更新若为整数根加一，精确平方根必超过该整数根加二分之一，故下一轮相邻商直接结束。
      */
-    static int sqrtScaled(long w0, long w1, long w2, long w3, int shift, long[] workspace) {
+    public static int sqrtScaled(long w0, long w1, long w2, long w3, int shift, long[] workspace) {
         workspace[0] = 0;
         workspace[1] = 0;
         long prefixLow = scaledWord(w0, w1, w2, w3, 0, shift - 346);
@@ -704,7 +704,7 @@ final class UnsignedWords {
      * 输入为 127 或 128 位无符号数，返回其完整 64 位整数根。
      * 高半部整数根构造的上界误差不超过 2^32，一次 Newton 更新后候选最多高一，完整平方比较只需修正一次。
      */
-    static long sqrtUnsigned128(long low, long high) {
+    public static long sqrtUnsigned128(long low, long high) {
         long upper = sqrtUnsignedLong(high) + 1;
         long candidate;
         if (upper == DIGIT_BASE) {
@@ -808,7 +808,7 @@ final class UnsignedWords {
     }
 
     /** 输入按无符号位模式解释，返回不大于精确平方根的最大整数；余数与试减值最多 34 位，均装得进 long。 */
-    static long sqrtUnsignedLong(long value) {
+    public static long sqrtUnsignedLong(long value) {
         long root = 0, remainder = 0;
         for (int pair = (63 - Long.numberOfLeadingZeros(value)) >> 1; pair >= 0; pair--) {
             remainder = (remainder << 2) | ((value >>> (pair * 2)) & 3);
@@ -878,7 +878,7 @@ final class UnsignedWords {
     }
 
     /** 模重复平方只保留余数，避免为大指数构造完整的二次幂。 */
-    static long[] powerOfTwoMod(long exponent, long[] modulus) {
+    public static long[] powerOfTwoMod(long exponent, long[] modulus) {
         long[] result = remainder(new long[] {1}, modulus);
         if (result.length == 0 || exponent == 0) {
             return result;

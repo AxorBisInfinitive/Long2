@@ -4,12 +4,25 @@ import java.util.Objects;
 
 import com.inf.long2.Binary;
 import com.inf.long2.Int;
+import com.inf.long2.binaries.binary256.Binary256Arithmetic;
+import com.inf.long2.binaries.binary256.Binary256Decimal;
+import com.inf.long2.binaries.internal.UnsignedWords;
 import com.inf.long2.ints.Int256;
 
-import static com.inf.long2.binaries.Binary256Rounding.bitLength;
-import static com.inf.long2.binaries.Binary256Rounding.fromDyadic;
-import static com.inf.long2.binaries.Binary256Rounding.packRounded;
-import static com.inf.long2.binaries.Binary256Rounding.shiftedWord;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.BIAS;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.FRACTION_MASK;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.HIDDEN_BIT;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.QMIN;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.emptyFraction;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.encodedExponent;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.fromUnsignedLong;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.infinity;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.magnitudeWord;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.zero;
+import static com.inf.long2.binaries.binary256.Binary256Rounding.bitLength;
+import static com.inf.long2.binaries.binary256.Binary256Rounding.fromDyadic;
+import static com.inf.long2.binaries.binary256.Binary256Rounding.packRounded;
+import static com.inf.long2.binaries.binary256.Binary256Rounding.shiftedWord;
 
 /**
  * 256-bit 二进制浮点数，以四个 long 按大端序保存原始编码。
@@ -18,10 +31,6 @@ import static com.inf.long2.binaries.Binary256Rounding.shiftedWord;
  * 加减与 FMA 的精确对齐均使用有界工作区，FMA 对齐幅值最多使用 12 个 long，不随指数差扩张。
  */
 public final class Binary256 implements Binary<Binary256> {
-    static final int BIAS = 262143;
-    static final int QMIN = -262378;
-    static final long FRACTION_MASK = 0x0000_0fff_ffff_ffffL;
-    static final long HIDDEN_BIT = 0x0000_1000_0000_0000L;
     private static final long INFINITY_TOP = 0x7fff_f000_0000_0000L;
     private static final long NAN_TOP = 0x7fff_f800_0000_0000L;
 
@@ -199,18 +208,6 @@ public final class Binary256 implements Binary<Binary256> {
         long magnitude = exponent == 0 ? fraction : fraction | (1L << fractionBits);
         long scale = (exponent == 0 ? 1L : exponent) - bias - fractionBits;
         return fromUnsignedLong(negative, magnitude, scale);
-    }
-
-    /** 原始无符号 long 幅值的精确扩展，调用方保证非零值落在 Binary256 的正常范围内。 */
-    static Binary256 fromUnsignedLong(boolean negative, long magnitude, long scale) {
-        if (magnitude == 0) {
-            return zero(negative);
-        }
-        int length = 64 - Long.numberOfLeadingZeros(magnitude);
-        long top = length <= 45 ? magnitude << (45 - length) : magnitude >>> (length - 45);
-        long next = length <= 45 ? 0 : magnitude << (109 - length);
-        long encoded = scale + length - 1 + BIAS;
-        return new Binary256((negative ? Long.MIN_VALUE : 0) | (encoded << 44) | (top & FRACTION_MASK), next, 0, 0);
     }
 
     /**
@@ -407,14 +404,6 @@ public final class Binary256 implements Binary<Binary256> {
         return FORMAT;
     }
 
-    int encodedExponent() {
-        return (int) ((l0 >>> 44) & 0x7ffff);
-    }
-
-    boolean emptyFraction() {
-        return ((l0 & FRACTION_MASK) | l1 | l2 | l3) == 0;
-    }
-
     @Override
     public boolean signBit() {
         return l0 < 0;
@@ -422,32 +411,32 @@ public final class Binary256 implements Binary<Binary256> {
 
     @Override
     public boolean isNaN() {
-        return encodedExponent() == 0x7ffff && !emptyFraction();
+        return encodedExponent(this) == 0x7ffff && !emptyFraction(this);
     }
 
     @Override
     public boolean isInfinite() {
-        return encodedExponent() == 0x7ffff && emptyFraction();
+        return encodedExponent(this) == 0x7ffff && emptyFraction(this);
     }
 
     @Override
     public boolean isFinite() {
-        return encodedExponent() != 0x7ffff;
+        return encodedExponent(this) != 0x7ffff;
     }
 
     @Override
     public boolean isZero() {
-        return encodedExponent() == 0 && emptyFraction();
+        return encodedExponent(this) == 0 && emptyFraction(this);
     }
 
     @Override
     public boolean isNormal() {
-        return encodedExponent() != 0 && isFinite();
+        return encodedExponent(this) != 0 && isFinite();
     }
 
     @Override
     public boolean isSubnormal() {
-        return encodedExponent() == 0 && !emptyFraction();
+        return encodedExponent(this) == 0 && !emptyFraction(this);
     }
 
     private void requireFinite() {
@@ -459,7 +448,7 @@ public final class Binary256 implements Binary<Binary256> {
     @Override
     public long scaleExponent() {
         requireFinite();
-        int exponent = encodedExponent();
+        int exponent = encodedExponent(this);
         return exponent == 0 ? QMIN : exponent - (long) BIAS - 236;
     }
 
@@ -475,50 +464,27 @@ public final class Binary256 implements Binary<Binary256> {
         };
     }
 
-    long[] magnitude() {
-        return UnsignedWords.trim(new long[] {l3, l2, l1, getSignificandLong(0)});
-    }
-
-    /** 内部按低位分组读取有限幅值，超出四个分组的部分补零。 */
-    long magnitudeWord(int index) {
-        return switch (index) {
-            case 0 -> l3;
-            case 1 -> l2;
-            case 2 -> l1;
-            case 3 -> (l0 & FRACTION_MASK) | (encodedExponent() == 0 ? 0 : HIDDEN_BIT);
-            default -> 0;
-        };
-    }
-
     /** 返回有限幅值右移后的低 64 位，distance 不小于零。 */
     private long shiftedMagnitude(int distance) {
         int group = distance >>> 6;
         int bits = distance & 63;
-        long result = magnitudeWord(group) >>> bits;
-        return bits == 0 ? result : result | (magnitudeWord(group + 1) << (64 - bits));
+        long result = magnitudeWord(this, group) >>> bits;
+        return bits == 0 ? result : result | (magnitudeWord(this, group + 1) << (64 - bits));
     }
 
     private boolean magnitudeBit(int index) {
-        return (magnitudeWord(index >>> 6) & (1L << (index & 63))) != 0;
+        return (magnitudeWord(this, index >>> 6) & (1L << (index & 63))) != 0;
     }
 
     private boolean anyLowMagnitude(int count) {
         int whole = count >>> 6;
         for (int i = 0; i < whole; i++) {
-            if (magnitudeWord(i) != 0) {
+            if (magnitudeWord(this, i) != 0) {
                 return true;
             }
         }
         int bits = count & 63;
-        return bits != 0 && (magnitudeWord(whole) & ((1L << bits) - 1)) != 0;
-    }
-
-    static Binary256 zero(boolean negative) {
-        return negative ? NEGATIVE_ZERO : ZERO;
-    }
-
-    static Binary256 infinity(boolean negative) {
-        return negative ? NEGATIVE_INFINITY : POSITIVE_INFINITY;
+        return bits != 0 && (magnitudeWord(this, whole) & ((1L << bits) - 1)) != 0;
     }
 
     @Override
@@ -732,7 +698,7 @@ public final class Binary256 implements Binary<Binary256> {
         if (isInfinite()) {
             return sign | infinity;
         }
-        int exponent = encodedExponent() - BIAS;
+        int exponent = encodedExponent(this) - BIAS;
         if (exponent > emax) {
             return sign | infinity;
         }
@@ -778,7 +744,7 @@ public final class Binary256 implements Binary<Binary256> {
         if (isInfinite()) {
             return signBit() ? minimum : maximum;
         }
-        int exponent = encodedExponent() - BIAS;
+        int exponent = encodedExponent(this) - BIAS;
         if (exponent >= width - 1) {
             return signBit() ? minimum : maximum;
         }

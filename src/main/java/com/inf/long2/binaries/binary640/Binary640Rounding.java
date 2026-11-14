@@ -1,16 +1,25 @@
-package com.inf.long2.binaries;
+package com.inf.long2.binaries.binary640;
 
 import java.util.Arrays;
 
-import static com.inf.long2.binaries.Binary640.raw;
+import com.inf.long2.binaries.Binary640;
+import com.inf.long2.binaries.internal.UnsignedWords;
+
+import static com.inf.long2.binaries.binary640.Binary640Encoding.BIAS;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.FRACTION_MASK;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.HIDDEN_BIT;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.QMIN;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.infinity;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.raw;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.zero;
 
 /** 将低组在前的整数幅值按最近偶数规则舍入并编码为 Binary640。 */
-final class Binary640Rounding {
+public final class Binary640Rounding {
     private Binary640Rounding() {
     }
 
     /** 将一个源分组按位偏移并入独占窗口，窗口外的位丢弃。 */
-    static void insert(long[] target, long word, long offset) {
+    public static void insert(long[] target, long word, long offset) {
         if (offset < 0) {
             if (offset > -64) {
                 target[0] |= word >>> (int) -offset;
@@ -28,7 +37,7 @@ final class Binary640Rounding {
     }
 
     /** distance 为正时右移，为负时左移，范围外的源分组补零。 */
-    static long shiftedWord(long[] magnitude, int index, int distance) {
+    public static long shiftedWord(long[] magnitude, int index, int distance) {
         int group = index + (distance >> 6), bits = distance & 63;
         long low = group < 0 ? 0 : UnsignedWords.word(magnitude, group);
         if (bits == 0) {
@@ -38,19 +47,19 @@ final class Binary640Rounding {
         return (low >>> bits) | (high << (64 - bits));
     }
 
-    static Binary640 roundDyadic(boolean negative, long[] magnitude, long scale) {
+    public static Binary640 roundDyadic(boolean negative, long[] magnitude, long scale) {
         int length = UnsignedWords.bitLength(magnitude);
         if (length == 0) {
-            return Binary640.zero(negative);
+            return zero(negative);
         }
         long exponent = scale + length - 1;
         if (exponent > Binary640.FORMAT.maxExponent()) {
-            return Binary640.infinity(negative);
+            return infinity(negative);
         }
-        if (exponent < Binary640.QMIN - 1L) {
-            return Binary640.zero(negative);
+        if (exponent < QMIN - 1L) {
+            return zero(negative);
         }
-        long quantum = Math.max(exponent - 615, Binary640.QMIN);
+        long quantum = Math.max(exponent - 615, QMIN);
         int discarded = Math.toIntExact(quantum - scale);
         long[] kept = new long[10];
         for (int i = 0; i < kept.length; i++) {
@@ -63,7 +72,7 @@ final class Binary640Rounding {
 
     static Binary640 roundRational(boolean negative, long[] numerator, long[] denominator, long scale) {
         if (UnsignedWords.bitLength(numerator) == 0) {
-            return Binary640.zero(negative);
+            return zero(negative);
         }
         int ratioExponent = UnsignedWords.bitLength(numerator) - UnsignedWords.bitLength(denominator);
         int comparison = ratioExponent >= 0
@@ -71,12 +80,12 @@ final class Binary640Rounding {
                 : -UnsignedWords.compareShifted(denominator, numerator, -ratioExponent);
         long exponent = scale + ratioExponent - (comparison < 0 ? 1 : 0);
         if (exponent > Binary640.FORMAT.maxExponent()) {
-            return Binary640.infinity(negative);
+            return infinity(negative);
         }
-        if (exponent < Binary640.QMIN - 1L) {
-            return Binary640.zero(negative);
+        if (exponent < QMIN - 1L) {
+            return zero(negative);
         }
-        long quantum = Math.max(exponent - 615, Binary640.QMIN);
+        long quantum = Math.max(exponent - 615, QMIN);
         long shift = scale - quantum;
         if (shift >= 0) {
             numerator = UnsignedWords.left(numerator, Math.toIntExact(shift));
@@ -98,7 +107,7 @@ final class Binary640Rounding {
                 }
             }
         }
-        if ((kept[9] & (Binary640.HIDDEN_BIT << 1)) != 0) {
+        if ((kept[9] & (HIDDEN_BIT << 1)) != 0) {
             for (int i = 0; i < 9; i++) {
                 kept[i] = (kept[i] >>> 1) | (kept[i + 1] << 63);
             }
@@ -107,14 +116,14 @@ final class Binary640Rounding {
         }
         int length = UnsignedWords.bitLength(kept);
         if (length == 0) {
-            return Binary640.zero(negative);
+            return zero(negative);
         }
         long exponent = quantum + length - 1;
         if (exponent > Binary640.FORMAT.maxExponent()) {
-            return Binary640.infinity(negative);
+            return infinity(negative);
         }
-        long encoded = exponent < Binary640.FORMAT.minExponent() ? 0 : exponent + Binary640.BIAS;
-        kept[9] = (negative ? Long.MIN_VALUE : 0) | (encoded << 39) | (kept[9] & Binary640.FRACTION_MASK);
+        long encoded = exponent < Binary640.FORMAT.minExponent() ? 0 : exponent + BIAS;
+        kept[9] = (negative ? Long.MIN_VALUE : 0) | (encoded << 39) | (kept[9] & FRACTION_MASK);
         return raw(kept);
     }
 
@@ -122,16 +131,16 @@ final class Binary640Rounding {
     static Binary640 roundOwnedDyadic(boolean negative, long[] magnitude, long scale) {
         int length = UnsignedWords.bitLength(magnitude);
         if (length == 0) {
-            return Binary640.zero(negative);
+            return zero(negative);
         }
         long exponent = scale + length - 1;
         if (exponent > Binary640.FORMAT.maxExponent()) {
-            return Binary640.infinity(negative);
+            return infinity(negative);
         }
-        if (exponent < Binary640.QMIN - 1L) {
-            return Binary640.zero(negative);
+        if (exponent < QMIN - 1L) {
+            return zero(negative);
         }
-        long quantum = Math.max(exponent - 615, Binary640.QMIN);
+        long quantum = Math.max(exponent - 615, QMIN);
         int discarded = Math.toIntExact(quantum - scale);
         boolean increment = discarded > 0 && UnsignedWords.bit(magnitude, discarded - 1)
                 && (UnsignedWords.bit(magnitude, discarded) || UnsignedWords.anyLow(magnitude, discarded - 1));
@@ -157,17 +166,17 @@ final class Binary640Rounding {
     static Binary640 roundProduct(boolean negative, long[] product, long scale) {
         int length = UnsignedWords.bitLength(product);
         if (length == 0) {
-            return Binary640.zero(negative);
+            return zero(negative);
         }
         long exponent = scale + length - 1;
         if (exponent > Binary640.FORMAT.maxExponent()) {
-            return Binary640.infinity(negative);
+            return infinity(negative);
         }
-        if (exponent < Binary640.QMIN - 1L) {
-            return Binary640.zero(negative);
+        if (exponent < QMIN - 1L) {
+            return zero(negative);
         }
         boolean lowRange = exponent <= Binary640.FORMAT.minExponent();
-        long quantum = lowRange ? Binary640.QMIN : exponent - 615;
+        long quantum = lowRange ? QMIN : exponent - 615;
         int discarded = Math.toIntExact(quantum - scale);
         boolean increment = discarded > 0 && UnsignedWords.bit(product, discarded - 1)
                 && (UnsignedWords.bit(product, discarded) || UnsignedWords.anyLow(product, discarded - 1));
@@ -192,18 +201,18 @@ final class Binary640Rounding {
             product[9] |= negative ? Long.MIN_VALUE : 0;
             return raw(product);
         }
-        if ((product[9] & (Binary640.HIDDEN_BIT << 1)) != 0) {
+        if ((product[9] & (HIDDEN_BIT << 1)) != 0) {
             for (int i = 0; i < 9; i++) {
                 product[i] = (product[i] >>> 1) | (product[i + 1] << 63);
             }
             product[9] >>>= 1;
             exponent++;
             if (exponent > Binary640.FORMAT.maxExponent()) {
-                return Binary640.infinity(negative);
+                return infinity(negative);
             }
         }
-        product[9] = (negative ? Long.MIN_VALUE : 0) | ((exponent + Binary640.BIAS) << 39)
-                | (product[9] & Binary640.FRACTION_MASK);
+        product[9] = (negative ? Long.MIN_VALUE : 0) | ((exponent + BIAS) << 39)
+                | (product[9] & FRACTION_MASK);
         return raw(product);
     }
 
@@ -211,7 +220,7 @@ final class Binary640Rounding {
     /** 非零尾项小于乘积网格间距，只在精确中点决定向哪一侧舍入。 */
     static Binary640 productWithTail(boolean negative, long[] product, long scale, long exponent, boolean increases) {
         if (exponent > Binary640.FORMAT.maxExponent()) {
-            return Binary640.infinity(negative);
+            return infinity(negative);
         }
         int discarded = UnsignedWords.bitLength(product) - 616;
         if (discarded > 0 && UnsignedWords.bit(product, discarded - 1) && !UnsignedWords.anyLow(product, discarded - 1)) {

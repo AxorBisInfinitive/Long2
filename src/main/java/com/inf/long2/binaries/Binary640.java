@@ -4,16 +4,25 @@ import java.util.Objects;
 
 import com.inf.long2.Binary;
 import com.inf.long2.Int;
+import com.inf.long2.binaries.binary640.Binary640Arithmetic;
+import com.inf.long2.binaries.binary640.Binary640Decimal;
+import com.inf.long2.binaries.binary640.Binary640Rounding;
+import com.inf.long2.binaries.internal.UnsignedWords;
+
+import static com.inf.long2.binaries.binary640.Binary640Encoding.BIAS;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.FRACTION_MASK;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.HIDDEN_BIT;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.QMIN;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.infinity;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.magnitude;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.raw;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.zero;
 
 /**
  * 640 位二进制浮点数，原始编码按大端序保存在十个 long 中。
  * 符号占一位，偏置指数占 24 位，小数字段占 615 位，正常数精度为 616 位。
  */
 public final class Binary640 implements Binary<Binary640> {
-    static final int BIAS = 8388607;
-    static final int QMIN = -8389221;
-    static final long FRACTION_MASK = 0x0000_007f_ffff_ffffL;
-    static final long HIDDEN_BIT = 0x0000_0080_0000_0000L;
     private static final long INFINITY_TOP = 0x7fff_ff80_0000_0000L;
     private static final long NAN_TOP = 0x7fff_ffc0_0000_0000L;
 
@@ -305,27 +314,6 @@ public final class Binary640 implements Binary<Binary640> {
         return index == 0 ? (l0 & FRACTION_MASK) | (encodedExponent() == 0 ? 0 : HIDDEN_BIT) : getRawLong(index);
     }
 
-    long[] magnitude() {
-        long[] words = new long[10];
-        for (int i = 0; i < words.length; i++) {
-            words[i] = getSignificandLong(9 - i);
-        }
-        return UnsignedWords.trim(words);
-    }
-
-    static Binary640 raw(long[] lowWords) {
-        return fromRawBits(lowWords[9], lowWords[8], lowWords[7], lowWords[6], lowWords[5],
-                lowWords[4], lowWords[3], lowWords[2], lowWords[1], lowWords[0]);
-    }
-
-    static Binary640 zero(boolean negative) {
-        return negative ? NEGATIVE_ZERO : ZERO;
-    }
-
-    static Binary640 infinity(boolean negative) {
-        return negative ? NEGATIVE_INFINITY : POSITIVE_INFINITY;
-    }
-
     @Override
     public Binary640 add(Binary640 other) {
         Objects.requireNonNull(other);
@@ -504,7 +492,7 @@ public final class Binary640 implements Binary<Binary640> {
         if (exponent < minimumScale - 1) {
             return sign;
         }
-        long[] magnitude = magnitude();
+        long[] magnitude = magnitude(this);
         int quantum = Math.max(exponent - fractionBits, minimumScale);
         int discarded = quantum - exponent + 615;
         long rounded = Binary640Rounding.shiftedWord(magnitude, 0, discarded);
@@ -549,7 +537,7 @@ public final class Binary640 implements Binary<Binary640> {
         if (exponent < 0) {
             return 0;
         }
-        long result = Binary640Rounding.shiftedWord(magnitude(), 0, 615 - exponent);
+        long result = Binary640Rounding.shiftedWord(magnitude(this), 0, 615 - exponent);
         return signBit() ? -result : result;
     }
 

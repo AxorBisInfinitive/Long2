@@ -33,7 +33,7 @@ class Binary640MultiplyCandidateTest {
     }
 
     private static Method rounder() throws ReflectiveOperationException {
-        Class<?> rounding = Class.forName("com.inf.long2.binaries.Binary640Rounding");
+        Class<?> rounding = Class.forName("com.inf.long2.binaries.binary640.Binary640Rounding");
         Method result;
         try {
             result = rounding.getDeclaredMethod("roundProduct", boolean.class, long[].class, long.class);
@@ -56,7 +56,7 @@ class Binary640MultiplyCandidateTest {
 
     @Test
     void checksFullSingleWordProductsWithEveryRemainingWindow() throws ReflectiveOperationException {
-        Class<?> math = Class.forName("com.inf.long2.binaries.Binary640Arithmetic");
+        Class<?> math = Class.forName("com.inf.long2.binaries.binary640.Binary640Arithmetic");
         Method kernel = math.getDeclaredMethod("multiplyTrimmed", Binary640.class, long.class, int.class,
                 Binary640.class, long.class, int.class);
         kernel.setAccessible(true);

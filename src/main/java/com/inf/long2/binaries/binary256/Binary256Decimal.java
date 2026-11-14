@@ -1,13 +1,22 @@
-package com.inf.long2.binaries;
+package com.inf.long2.binaries.binary256;
 
 import java.util.Arrays;
 import java.util.Objects;
 
-/** 精确十进制转换；幅值低组在前，不经过其他浮点格式。 */
-final class Binary640Decimal {
-    private static final long EXPONENT_LIMIT = Long.MAX_VALUE / 4;
+import com.inf.long2.binaries.Binary256;
+import com.inf.long2.binaries.internal.UnsignedWords;
 
-    private Binary640Decimal() {
+/** 精确十进制转换；幅值低组在前，不经过其他浮点格式。 */
+public final class Binary256Decimal {
+    private static final long EXPONENT_LIMIT = Long.MAX_VALUE / 4;
+    // 仅缓存 5^(2^i), i <= 16；覆盖全部输出指数，缓存容量不随输入增长。
+    private static final long[][] FIVE_POWERS = new long[17][];
+
+    static {
+        FIVE_POWERS[0] = new long[] {5};
+    }
+
+    private Binary256Decimal() {
     }
 
     private enum TextKind {
@@ -19,7 +28,7 @@ final class Binary640Decimal {
             int first, int last, long scale) {
     }
 
-    static boolean isValid(String text) {
+    public static boolean isValid(String text) {
         return scan(text) != null;
     }
 
@@ -93,14 +102,14 @@ final class Binary640Decimal {
         return new ScannedDecimal(TextKind.FINITE, negative, start, end, first, last, scale);
     }
 
-    static Binary640 parse(String text) {
+    public static Binary256 parse(String text) {
         Objects.requireNonNull(text);
         ScannedDecimal scanned = scan(text);
         if (scanned == null) {
             throw invalid(text);
         }
         if (scanned.kind() == TextKind.NAN) {
-            return Binary640.NaN;
+            return Binary256.NaN;
         }
         boolean negative = scanned.negative();
         if (scanned.kind() == TextKind.INFINITY) {
@@ -113,10 +122,10 @@ final class Binary640Decimal {
         long scale = scanned.scale();
         long decimalExponent = scale + (last - (long) first);
         // 保守边界严格包围全部有限非零舍入区间；此时整段文本已完成语法检查。
-        if (decimalExponent > 2600000) {
+        if (decimalExponent > 80000) {
             return infinity(negative);
         }
-        if (decimalExponent < -2600000) {
+        if (decimalExponent < -80000) {
             return zero(negative);
         }
         long[] coefficient = new long[0];
@@ -148,14 +157,14 @@ final class Binary640Decimal {
         } else {
             denominator = powerOfFive(Math.toIntExact(-scale));
         }
-        return Binary640Rounding.roundRational(negative, numerator, denominator, scale);
+        return Binary256Rounding.roundRational(negative, numerator, denominator, scale);
     }
 
     private static NumberFormatException invalid(String text) {
         return new NumberFormatException("Invalid decimal value: " + text);
     }
 
-    static String format(Binary640 value, boolean scientific) {
+    public static String format(Binary256 value, boolean scientific) {
         if (value.isNaN()) {
             return "NaN";
         }
@@ -186,7 +195,7 @@ final class Binary640Decimal {
     private record Decimal(String digits, int exponent) {
     }
 
-    static String format(Binary640 value, boolean scientific, int fractionDigits) {
+    public static String format(Binary256 value, boolean scientific, int fractionDigits) {
         if (fractionDigits < 0) {
             throw new IllegalArgumentException("fractionDigits must not be negative");
         }
@@ -201,7 +210,8 @@ final class Binary640Decimal {
             return scientific ? scientificFixed(negative, "0", fractionDigits, 0)
                     : plainFixed(negative, "0", 0, fractionDigits);
         }
-        long[] magnitude = value.magnitude();
+        long[] magnitude = UnsignedWords.trim(new long[] {value.getSignificandLong(3),
+                value.getSignificandLong(2), value.getSignificandLong(1), value.getSignificandLong(0)});
         int trailing = 0;
         while (magnitude[trailing / 64] == 0) {
             trailing += 64;
@@ -245,7 +255,7 @@ final class Binary640Decimal {
     private record Rational(long[] numerator, long[] denominator) {
     }
 
-    /** magnitude * 2^scale * 10^decimalShift 的精确有理数；本方法的缩放参数均受 Binary640 格式约束。 */
+    /** magnitude * 2^scale * 10^decimalShift 的精确有理数；本方法的缩放参数均受 Binary256 格式约束。 */
     private static Rational scaledDecimal(long[] magnitude, int scale, int decimalShift) {
         long[] numerator = magnitude, denominator = new long[] {1};
         if (decimalShift >= 0) {
@@ -293,7 +303,7 @@ final class Binary640Decimal {
         return UnsignedWords.trim(result);
     }
 
-    /** 独占副本按 10^9 分组除法转为十进制，不修改输入幅值。 */
+    /** 独占副本按 10^9 分组除法转为十进制，不修改输入或缓存中的五次幂。 */
     private static String decimalDigits(long[] value) {
         int bits = UnsignedWords.bitLength(value);
         if (bits == 0) {
@@ -381,17 +391,18 @@ final class Binary640Decimal {
 
     /**
      * Dragon 式区间生成。r/s 为当前归一化数值，lower/s、upper/s 为两侧中点距离。
-     * 用 4M 和 q-2 的共同位权表示边界，正常二次幂在最小正常数之外的下侧间距减半。
+     * 用 4M 和 q-2 的共同位权表示边界，正常二次幂（最小正常数除外）的下侧间距减半。
      * 最大有限值的上侧使用虚拟后继 2^(emax+1)，恰好覆盖舍入到无穷的边界。
      */
-    private static Decimal shortest(Binary640 value) {
-        long[] magnitude = value.magnitude();
+    private static Decimal shortest(Binary256 value) {
+        long[] magnitude = UnsignedWords.trim(new long[] {value.getSignificandLong(3),
+                value.getSignificandLong(2), value.getSignificandLong(1), value.getSignificandLong(0)});
         boolean inclusive = (magnitude[0] & 1) == 0;
         int bits = UnsignedWords.bitLength(magnitude);
         long scale = value.scaleExponent();
         int binaryExponent = Math.toIntExact(scale + bits - 1);
-        boolean lowerCloser = value.isNormal() && binaryExponent > -8388606
-                && !UnsignedWords.anyLow(magnitude, 615);
+        boolean lowerCloser = value.isNormal() && binaryExponent > -262142
+                && !UnsignedWords.anyLow(magnitude, 236);
         long[] r = UnsignedWords.left(magnitude, 2);
         long[] lower = new long[] {lowerCloser ? 1 : 2}, upper = new long[] {2};
         long[] s = new long[] {1};
@@ -425,7 +436,7 @@ final class Binary640Decimal {
             tenS = multiplyAdd(s, 10, 0);
             exponent++;
         }
-        StringBuilder digits = new StringBuilder(187);
+        StringBuilder digits = new StringBuilder(73);
         for (;;) {
             // 归一化后的整数商只有一位；最多九次减法，避免为每位构造规范化除法工作区。
             int digit = 0;
@@ -492,24 +503,34 @@ final class Binary640Decimal {
 
     private static long[] powerOfFive(int exponent) {
         long[] result = new long[] {1};
-        long[] factor = new long[] {5};
-        while (exponent != 0) {
+        long[] factor = FIVE_POWERS[0];
+        for (int bit = 0; exponent != 0; bit++, exponent >>>= 1) {
+            if (bit < FIVE_POWERS.length) {
+                factor = cachedPower(bit);
+            } else {
+                factor = UnsignedWords.multiply(factor, factor);
+            }
             if ((exponent & 1) != 0) {
                 result = UnsignedWords.multiply(result, factor);
-            }
-            exponent >>>= 1;
-            if (exponent != 0) {
-                factor = UnsignedWords.multiply(factor, factor);
             }
         }
         return result;
     }
 
-    private static Binary640 zero(boolean negative) {
-        return negative ? Binary640.NEGATIVE_ZERO : Binary640.ZERO;
+    private static synchronized long[] cachedPower(int bit) {
+        for (int i = 1; i <= bit; i++) {
+            if (FIVE_POWERS[i] == null) {
+                FIVE_POWERS[i] = UnsignedWords.multiply(FIVE_POWERS[i - 1], FIVE_POWERS[i - 1]);
+            }
+        }
+        return FIVE_POWERS[bit];
     }
 
-    private static Binary640 infinity(boolean negative) {
-        return negative ? Binary640.NEGATIVE_INFINITY : Binary640.POSITIVE_INFINITY;
+    private static Binary256 zero(boolean negative) {
+        return negative ? Binary256.NEGATIVE_ZERO : Binary256.ZERO;
+    }
+
+    private static Binary256 infinity(boolean negative) {
+        return negative ? Binary256.NEGATIVE_INFINITY : Binary256.POSITIVE_INFINITY;
     }
 }

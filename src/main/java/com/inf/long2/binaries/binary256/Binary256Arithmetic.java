@@ -1,32 +1,39 @@
-package com.inf.long2.binaries;
+package com.inf.long2.binaries.binary256;
 
-import static com.inf.long2.binaries.Binary256.BIAS;
+import com.inf.long2.binaries.Binary256;
+import com.inf.long2.binaries.internal.UnsignedWords;
+
 import static com.inf.long2.binaries.Binary256.FORMAT;
-import static com.inf.long2.binaries.Binary256.FRACTION_MASK;
-import static com.inf.long2.binaries.Binary256.HIDDEN_BIT;
 import static com.inf.long2.binaries.Binary256.NaN;
 import static com.inf.long2.binaries.Binary256.ONE;
 import static com.inf.long2.binaries.Binary256.POSITIVE_INFINITY;
-import static com.inf.long2.binaries.Binary256.QMIN;
 import static com.inf.long2.binaries.Binary256.ZERO;
-import static com.inf.long2.binaries.Binary256.fromUnsignedLong;
-import static com.inf.long2.binaries.Binary256.infinity;
-import static com.inf.long2.binaries.Binary256.zero;
-import static com.inf.long2.binaries.Binary256Rounding.bitLength;
-import static com.inf.long2.binaries.Binary256Rounding.fourWord;
-import static com.inf.long2.binaries.Binary256Rounding.fromDyadic;
-import static com.inf.long2.binaries.Binary256Rounding.packRounded;
-import static com.inf.long2.binaries.Binary256Rounding.roundProductWithTail;
-import static com.inf.long2.binaries.Binary256Rounding.shiftedWord;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.BIAS;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.FRACTION_MASK;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.HIDDEN_BIT;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.QMIN;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.emptyFraction;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.encodedExponent;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.fromUnsignedLong;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.infinity;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.magnitude;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.magnitudeWord;
+import static com.inf.long2.binaries.binary256.Binary256Encoding.zero;
+import static com.inf.long2.binaries.binary256.Binary256Rounding.bitLength;
+import static com.inf.long2.binaries.binary256.Binary256Rounding.fourWord;
+import static com.inf.long2.binaries.binary256.Binary256Rounding.fromDyadic;
+import static com.inf.long2.binaries.binary256.Binary256Rounding.packRounded;
+import static com.inf.long2.binaries.binary256.Binary256Rounding.roundProductWithTail;
+import static com.inf.long2.binaries.binary256.Binary256Rounding.shiftedWord;
 
 /** Binary256 算术。整数幅值低组在前，原地操作只修改本次调用独占的数组。 */
-final class Binary256Arithmetic {
+public final class Binary256Arithmetic {
     private static final int FMA_ALIGNMENT_WORDS = 12;
 
     private Binary256Arithmetic() {
     }
 
-    static Binary256 add(Binary256 value, Binary256 other, boolean subtract) {
+    public static Binary256 add(Binary256 value, Binary256 other, boolean subtract) {
         if (value.isNaN() || other.isNaN()) {
             return NaN;
         }
@@ -81,7 +88,7 @@ final class Binary256Arithmetic {
         return fromDyadic(comparison > 0 ? negative : otherNegative, result, scale);
     }
 
-    static Binary256 multiply(Binary256 value, Binary256 other) {
+    public static Binary256 multiply(Binary256 value, Binary256 other) {
         if (value.isNaN() || other.isNaN() || (value.isZero() && other.isInfinite()) || (value.isInfinite() && other.isZero())) {
             return NaN;
         }
@@ -108,7 +115,7 @@ final class Binary256Arithmetic {
         if (power != Integer.MIN_VALUE) {
             return scalbFinite(other, power, negative);
         }
-        if (value.encodedExponent() != 0 && other.encodedExponent() != 0) {
+        if (encodedExponent(value) != 0 && encodedExponent(other) != 0) {
             return multiplyNormal(value, other, negative, minimumExponent - 472L);
         }
         return multiplyFinite(value, other, negative);
@@ -116,7 +123,7 @@ final class Binary256Arithmetic {
 
     /** 接收有限非零输入；低零位转移到位权，不丢弃乘积中任何会影响舍入的 bit。 */
     private static Binary256 multiplyFinite(Binary256 value, Binary256 other, boolean negative) {
-        long atop = value.magnitudeWord(3), btop = other.magnitudeWord(3);
+        long atop = magnitudeWord(value, 3), btop = magnitudeWord(other, 3);
         int abits = bitLength(value.getRawLong(3), value.getRawLong(2), value.getRawLong(1), atop);
         int bbits = bitLength(other.getRawLong(3), other.getRawLong(2), other.getRawLong(1), btop);
         int ashift = compactMagnitudeShift(value.getRawLong(3), value.getRawLong(2), value.getRawLong(1), atop, abits);
@@ -229,7 +236,7 @@ final class Binary256Arithmetic {
         };
     }
 
-    static Binary256 fma(Binary256 value, Binary256 multiplier, Binary256 addend) {
+    public static Binary256 fma(Binary256 value, Binary256 multiplier, Binary256 addend) {
         if (value.isNaN() || multiplier.isNaN() || addend.isNaN()
                 || (value.isZero() && multiplier.isInfinite()) || (value.isInfinite() && multiplier.isZero())) {
             return NaN;
@@ -328,7 +335,7 @@ final class Binary256Arithmetic {
 
     /** 两值均为有限非零数，保留完整乘积，结果工作区由本次调用独占。 */
     private static long[] multiplyMagnitude(Binary256 value, Binary256 other) {
-        long atop = value.magnitudeWord(3), btop = other.magnitudeWord(3);
+        long atop = magnitudeWord(value, 3), btop = magnitudeWord(other, 3);
         int alength = (bitLength(value.getRawLong(3), value.getRawLong(2), value.getRawLong(1), atop) + 63) / 64;
         int blength = (bitLength(other.getRawLong(3), other.getRawLong(2), other.getRawLong(1), btop) + 63) / 64;
         return multiplyMagnitude(value.getRawLong(3), value.getRawLong(2), value.getRawLong(1), atop, alength,
@@ -395,7 +402,7 @@ final class Binary256Arithmetic {
                 : w2 != 0 ? 128 + Long.numberOfTrailingZeros(w2) : 192 + Long.numberOfTrailingZeros(w3);
     }
 
-    static Binary256 divide(Binary256 value, Binary256 other) {
+    public static Binary256 divide(Binary256 value, Binary256 other) {
         if (value.isNaN() || other.isNaN() || (value.isZero() && other.isZero()) || (value.isInfinite() && other.isInfinite())) {
             return NaN;
         }
@@ -406,7 +413,7 @@ final class Binary256Arithmetic {
         if (value.isZero() || other.isInfinite()) {
             return zero(negative);
         }
-        long[] a = value.magnitude(), b = other.magnitude();
+        long[] a = magnitude(value), b = magnitude(other);
         long scale = value.scaleExponent() - other.scaleExponent();
         int ratioExponent = UnsignedWords.bitLength(a) - UnsignedWords.bitLength(b);
         int comparison = ratioExponent >= 0 ? UnsignedWords.compare(a, UnsignedWords.left(b, ratioExponent))
@@ -436,7 +443,7 @@ final class Binary256Arithmetic {
                 half > 0 || (half == 0 && UnsignedWords.bit(result, 0)));
     }
 
-    static Binary256 remainder(Binary256 value, Binary256 other, boolean nearest) {
+    public static Binary256 remainder(Binary256 value, Binary256 other, boolean nearest) {
         if (value.isNaN() || other.isNaN() || value.isInfinite() || other.isZero()) {
             return NaN;
         }
@@ -447,7 +454,7 @@ final class Binary256Arithmetic {
         if (nearest ? comparison <= 0 : comparison < 0) {
             return value;
         }
-        long[] a = value.magnitude(), b = other.magnitude(), remainder;
+        long[] a = magnitude(value), b = magnitude(other), remainder;
         long difference = value.scaleExponent() - other.scaleExponent();
         long scale;
         boolean odd;
@@ -512,24 +519,24 @@ final class Binary256Arithmetic {
 
     private static long alignedMagnitudeWord(Binary256 value, int group, int shift) {
         int whole = shift >>> 6, bits = shift & 63;
-        long word = value.magnitudeWord(group - whole) << bits;
-        return bits == 0 ? word : word | (value.magnitudeWord(group - whole - 1) >>> (64 - bits));
+        long word = magnitudeWord(value, group - whole) << bits;
+        return bits == 0 ? word : word | (magnitudeWord(value, group - whole - 1) >>> (64 - bits));
     }
 
     /** 有限非零值为二次幂时返回其指数，否则返回 Integer.MIN_VALUE。 */
     private static int powerOfTwoExponent(Binary256 value) {
-        int encoded = value.encodedExponent();
+        int encoded = encodedExponent(value);
         if (encoded != 0) {
-            return value.emptyFraction() ? encoded - BIAS : Integer.MIN_VALUE;
+            return emptyFraction(value) ? encoded - BIAS : Integer.MIN_VALUE;
         }
         for (int group = 0; group < 4; group++) {
-            long word = value.magnitudeWord(group);
+            long word = magnitudeWord(value, group);
             if (word != 0) {
                 if ((word & (word - 1)) != 0) {
                     return Integer.MIN_VALUE;
                 }
                 for (int higher = group + 1; higher < 4; higher++) {
-                    if (value.magnitudeWord(higher) != 0) {
+                    if (magnitudeWord(value, higher) != 0) {
                         return Integer.MIN_VALUE;
                     }
                 }
@@ -541,7 +548,7 @@ final class Binary256Arithmetic {
 
     /** 调用方保证值为有限非零数，次正规数按最高非零 bit 计算实际指数。 */
     private static int magnitudeExponent(Binary256 value) {
-        int encoded = value.encodedExponent();
+        int encoded = encodedExponent(value);
         if (encoded != 0) {
             return encoded - BIAS;
         }
@@ -552,7 +559,7 @@ final class Binary256Arithmetic {
         return QMIN + length - 1;
     }
 
-    static Binary256 sqrt(Binary256 value) {
+    public static Binary256 sqrt(Binary256 value) {
         if (value.isNaN() || (value.signBit() && !value.isZero())) {
             return NaN;
         }
@@ -561,7 +568,7 @@ final class Binary256Arithmetic {
         }
         // 正有限输入的平方根都在正常范围内，精确命中时可直接扩展为编码。
         int inputExponent = magnitudeExponent(value);
-        long scale = value.scaleExponent(), top = value.magnitudeWord(3);
+        long scale = value.scaleExponent(), top = magnitudeWord(value, 3);
         int length = (int) (inputExponent - scale + 1);
         int trailing = length <= 64 ? Long.numberOfTrailingZeros(value.getRawLong(3))
                 : compactMagnitudeShift(value.getRawLong(3), value.getRawLong(2), value.getRawLong(1), top, length);
@@ -585,7 +592,7 @@ final class Binary256Arithmetic {
         return packRounded(false, workspace[0], workspace[1], workspace[2], workspace[3], quantum, comparison > 0);
     }
 
-    static Binary256 scalb(Binary256 value, long scaleFactor) {
+    public static Binary256 scalb(Binary256 value, long scaleFactor) {
         if (value.isNaN()) {
             return NaN;
         }
@@ -595,7 +602,7 @@ final class Binary256Arithmetic {
         return scalbFinite(value, scaleFactor, value.signBit());
     }
 
-    static Binary256 ulp(Binary256 value) {
+    public static Binary256 ulp(Binary256 value) {
         if (value.isNaN()) {
             return NaN;
         }
@@ -607,13 +614,13 @@ final class Binary256Arithmetic {
 
     /** 接收值为有限非零数，negative 已包含调用方需要的符号变换。 */
     private static Binary256 scalbFinite(Binary256 value, long scaleFactor, boolean negative) {
-        int encoded = value.encodedExponent();
+        int encoded = encodedExponent(value);
         // 先限制增量，再相加，保证全部 long 参数都不会使指数回绕。
         if (encoded != 0 && scaleFactor >= 1L - encoded && scaleFactor <= 0x7fffeL - encoded) {
             return Binary256.fromRawBits((negative ? Long.MIN_VALUE : 0) | (value.getRawLong(0) & FRACTION_MASK)
                     | ((encoded + scaleFactor) << 44), value.getRawLong(1), value.getRawLong(2), value.getRawLong(3));
         }
-        long[] magnitude = value.magnitude();
+        long[] magnitude = magnitude(value);
         long scale = value.scaleExponent();
         long exponent = scale + UnsignedWords.bitLength(magnitude) - 1;
         // 先与有限的小范围界限比较，避免将 Long.MIN_VALUE 或 Long.MAX_VALUE 直接加到指数上。
