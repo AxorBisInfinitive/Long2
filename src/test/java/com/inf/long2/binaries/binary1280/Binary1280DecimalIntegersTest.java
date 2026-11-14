@@ -2,7 +2,6 @@ package com.inf.long2.binaries.binary1280;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Random;
 
 import org.junit.jupiter.api.Tag;
