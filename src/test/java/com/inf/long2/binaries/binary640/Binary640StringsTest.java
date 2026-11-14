@@ -10,6 +10,7 @@ import java.math.RoundingMode;
 import java.util.List;
 import java.util.Random;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 
@@ -49,6 +50,7 @@ class Binary640StringsTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void handlesUnboundedExponentsAndCompensatingCoefficientZeros() {
         String exponent = "9".repeat(400);
         assertRaw(Binary640.POSITIVE_INFINITY, Binary640.of("1e" + exponent));
@@ -65,6 +67,7 @@ class Binary640StringsTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void parsesExactDecimalsAgainstIndependentRationalRounding() {
         Random random = new Random(12345);
         for (int i = 0; i < 250; i++) {
@@ -104,6 +107,7 @@ class Binary640StringsTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void choosesShortestClosestDecimalAndChecksMinimalityIndependently() {
         Random random = new Random(12345);
         for (int i = 0; i < 150; i++) {

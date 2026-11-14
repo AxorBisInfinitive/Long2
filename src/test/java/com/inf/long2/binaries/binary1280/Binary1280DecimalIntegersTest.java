@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Random;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import static com.inf.long2.binaries.binary1280.Binary1280DecimalIntegers.*;
@@ -32,6 +33,7 @@ class Binary1280DecimalIntegersTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void exactProductsCrossAlgorithmThresholdsAndTransformBlocks() {
         Random random = new Random(1280246);
         for (int length : new int[] {1, 47, 48, 49, 1023, 1024, 1025, 2049}) {
@@ -54,6 +56,7 @@ class Binary1280DecimalIntegersTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void divideAndRemainderCrossLeafAndBlockBoundaries() {
         Random random = new Random(1280288);
         for (int length : new int[] {1, 64, 65, 127, 128, 129, 257, 1025}) {
@@ -77,6 +80,7 @@ class Binary1280DecimalIntegersTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void decimalBlocksPreserveLeadingWidthsAndInternalZeros() {
         Random random = new Random(128090);
         assertEquals("0", decimalDigits(ZERO));

@@ -18,6 +18,7 @@ import java.math.BigInteger;
 import java.util.List;
 import java.util.Random;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import com.inf.long2.ints.Int1024;
@@ -57,6 +58,7 @@ class Int1024EncodingTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void roundTripsRandomEncodingsAndFormatsAgainstBigInteger() {
         Random random = new Random(0x1024DEC1L);
         for (int i = 0; i < 1500; i++) {
@@ -74,6 +76,7 @@ class Int1024EncodingTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void parsesExtremeAndLongDecimalValuesModulo1024Bits() {
         for (BigInteger value : List.of(BigInteger.ZERO, ONE, ONE.negate(), MINIMUM, MAXIMUM,
                 MINIMUM.subtract(ONE), MAXIMUM.add(ONE), MODULUS, MODULUS.negate(),

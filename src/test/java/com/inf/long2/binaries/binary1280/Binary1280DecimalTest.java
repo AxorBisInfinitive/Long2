@@ -5,6 +5,7 @@ import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.util.Random;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 
@@ -40,6 +41,7 @@ class Binary1280DecimalTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void exactMidpointsAndVeryLateStickyDigits() {
         BigDecimal midpoint = BigDecimal.ONE.add(
                 new BigDecimal(BigInteger.valueOf(5).pow(1252), 1252));
@@ -55,6 +57,7 @@ class Binary1280DecimalTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void preciseMidpointComparisonHandlesSparseAndPaddedSignificands() {
         BigInteger numerator = BigInteger.ONE.shiftLeft(1253).subtract(BigInteger.ONE);
         BigDecimal midpoint = new BigDecimal(numerator.multiply(BigInteger.valueOf(5).pow(1253)), 1253);
@@ -66,6 +69,7 @@ class Binary1280DecimalTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void randomDecimalInputMatchesExactRationalReference() {
         Random random = new Random(0x1280decaL);
         for (int i = 0; i < 150; i++) {
@@ -110,6 +114,7 @@ class Binary1280DecimalTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void shortestRepresentationMatchesIndependentDecimalSearch() {
         Random random = new Random(377);
         for (int i = 0; i < 24; i++) {

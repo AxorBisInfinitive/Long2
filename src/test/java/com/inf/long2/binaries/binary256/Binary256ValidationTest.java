@@ -11,6 +11,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 
@@ -60,6 +61,7 @@ class Binary256ValidationTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void scansLongCoefficientsAndExponentsWithoutNumericConversion() {
         String coefficient = "7".repeat(1_000_000);
         assertTrue(Binary256.isValid(coefficient));
@@ -71,6 +73,7 @@ class Binary256ValidationTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void agreesWithAnIndependentGrammarAndWithParsing() {
         Random random = new Random(0x15A11D256L);
         String alphabet = "+-0123456789.eE NaInfinity_\n\u0000\uff11";

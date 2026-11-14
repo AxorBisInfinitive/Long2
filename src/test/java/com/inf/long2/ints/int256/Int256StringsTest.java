@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.math.BigInteger;
 import java.util.Random;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import com.inf.long2.ints.Int256;
@@ -170,6 +171,7 @@ public class Int256StringsTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void testRandomRoundTrip() {
         Random random = new Random(0x256DEC1L);
         BigInteger modulus = BigInteger.ONE.shiftLeft(256);

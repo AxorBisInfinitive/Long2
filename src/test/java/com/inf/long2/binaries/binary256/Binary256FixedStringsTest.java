@@ -12,6 +12,7 @@ import java.math.RoundingMode;
 import java.util.List;
 import java.util.Random;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 
@@ -107,6 +108,7 @@ class Binary256FixedStringsTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void rejectsLengthsThatCannotFitWithoutIntegerOverflow() {
         for (Binary256 value : List.of(Binary256.ZERO, Binary256.NEGATIVE_ZERO, Binary256.ONE,
                 Binary256.MIN_VALUE, Binary256.MAX_VALUE)) {
@@ -119,6 +121,7 @@ class Binary256FixedStringsTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void padsBeyondTheExactExpansionWithoutScalingByTheRequestedPrecision() {
         int digits = 1_000_000;
         assertEquals("1." + "0".repeat(digits), Binary256.ONE.toString(digits));
@@ -134,6 +137,7 @@ class Binary256FixedStringsTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void matchesIndependentDecimalRoundingForRandomValues() {
         Random random = new Random(0xF1CED256L);
         int[] precisions = {0, 1, 2, 8, 70, 71, 72, 73, 80, 200, 600};
@@ -151,6 +155,7 @@ class Binary256FixedStringsTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void coversExtremeExponentsAndSubnormalBoundaries() {
         for (Binary256 value : List.of(Binary256.MIN_VALUE, Binary256.MIN_VALUE.nextUp(),
                 Binary256.fromRawBits(0, 0, 0, 12345), Binary256.MIN_NORMAL.nextDown(),

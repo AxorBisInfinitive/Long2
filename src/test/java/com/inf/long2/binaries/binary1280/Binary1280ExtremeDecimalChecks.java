@@ -7,6 +7,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 
@@ -14,6 +15,7 @@ import static com.inf.long2.binaries.binary1280.Binary1280.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** 极端指数和长输出单独运行。 */
+@Tag("numeric-text-extreme")
 class Binary1280ExtremeDecimalChecks {
     @Test
     void endpointScientificStringsAndExtremeFixedPrecision() {

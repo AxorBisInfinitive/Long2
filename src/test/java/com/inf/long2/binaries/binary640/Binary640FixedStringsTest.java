@@ -8,6 +8,7 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.Random;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 
@@ -23,6 +24,14 @@ class Binary640FixedStringsTest {
     }
 
     @Test
+    void roundsTiesAndRenormalizesScientificCarries() {
+        assertEquals("1.2", Binary640.of("1.25").toString(1));
+        assertEquals("-1.8", Binary640.of("-1.75").toString(1));
+        assertEquals("1.00e1", Binary640.of("9.99609375").toScientificString(2));
+    }
+
+    @Test
+    @Tag("numeric-text-extended")
     void roundsStoredValuesDirectlyInsteadOfPaddingShortestStrings() {
         for (String text : new String[] {"0.1", "1e-100", "1e100", "-0.00125", "0", "-0", "0.125", "0.375", "2.5", "3.5", "9.99609375", "99.96875"}) {
             for (int digits : new int[] {0, 1, 2, 20, 185, 200}) {
@@ -30,10 +39,10 @@ class Binary640FixedStringsTest {
             }
         }
         assertNotEquals("0.1" + "0".repeat(219), Binary640.of("0.1").toString(220));
-        assertEquals("1.00e1", Binary640.of("9.99609375").toScientificString(2));
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void checksRandomFixedOutputsAndMidpointNeighbors() {
         Random random = new Random(12345);
         for (int i = 0; i < 100; i++) {

@@ -12,12 +12,14 @@ import java.math.BigInteger;
 import java.util.List;
 import java.util.Random;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 class IntTextTest {
     private static final BigInteger ONE = BigInteger.ONE;
 
     @Test
+    @Tag("numeric-text-extended")
     void parsesBothSignsModuloEachTargetWidthAndKeepsHighZeroWords() {
         Random random = new Random(0x1A7DEC1L);
         for (int count : new int[] {1, 2, 4, 8, 16}) {
@@ -43,6 +45,7 @@ class IntTextTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void formatsUnsignedMagnitudesAndSignsAcrossWidthsAndDecimalChunks() {
         Random random = new Random(0x1A7F02A7L);
         for (int count : new int[] {1, 2, 4, 8, 16, 17}) {
@@ -68,6 +71,7 @@ class IntTextTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void parsesHexAcrossWordBoundariesAndTruncatesOnlyAfterFullValidation() {
         Random random = new Random(0x1A7AE7L);
         for (int count : new int[] {1, 2, 4, 8, 16}) {

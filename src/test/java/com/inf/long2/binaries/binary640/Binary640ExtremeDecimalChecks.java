@@ -8,10 +8,12 @@ import java.math.BigInteger;
 import java.math.MathContext;
 import java.math.RoundingMode;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 
 /** 百万位指数的精确文本检查，使用显式测试类名执行。 */
+@Tag("numeric-text-extreme")
 class Binary640ExtremeDecimalChecks {
     @Test
     void roundTripsExtremeScientificValuesAndChecksTheirExactRoundingIntervals() {

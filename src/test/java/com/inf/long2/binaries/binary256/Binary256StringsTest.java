@@ -10,6 +10,7 @@ import java.math.RoundingMode;
 import java.util.List;
 import java.util.Random;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 
@@ -73,6 +74,7 @@ class Binary256StringsTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void handlesUnboundedExponentTextAndCompensatingZeros() {
         String huge = "9".repeat(300);
         assertRaw(Binary256.POSITIVE_INFINITY, Binary256.of("1e" + huge));
@@ -88,6 +90,7 @@ class Binary256StringsTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void parsesAgainstIndependentRationalRounding() {
         Random random = new Random(0xDEC256L);
         for (int i = 0; i < 300; i++) {
@@ -105,6 +108,7 @@ class Binary256StringsTest {
 
     /** 精确中点及其两侧，覆盖偶数取舍、跨 binade、上溢、下溢和次正规边界。 */
     @Test
+    @Tag("numeric-text-extended")
     void roundsExactMidpointsAndTheirNeighbors() {
         for (Binary256 lower : List.of(Binary256.ONE.nextDown(), Binary256.ONE, Binary256.ONE.nextUp(),
                 Binary256.MIN_NORMAL.nextDown(), Binary256.MIN_NORMAL, Binary256.MIN_VALUE,
@@ -144,6 +148,7 @@ class Binary256StringsTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void roundTripsRawValuesAcrossTheCompleteExponentRange() {
         for (Binary256 value : List.of(Binary256.ZERO, Binary256.NEGATIVE_ZERO, Binary256.ONE,
                 Binary256.ONE.nextDown(), Binary256.ONE.nextUp(), Binary256.MIN_VALUE,
@@ -190,6 +195,7 @@ class Binary256StringsTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void emitsTheNearestShortestDecimalAgainstAnIndependentSearch() {
         Random random = new Random(0xC105E57L);
         for (int i = 0; i < 150; i++) {
@@ -212,6 +218,7 @@ class Binary256StringsTest {
     }
 
     @Test
+    @Tag("numeric-text-extended")
     void shortestIntervalsIncludeTheExtremeNormalAndSubnormalBoundaries() {
         for (Binary256 value : List.of(Binary256.MIN_VALUE, Binary256.MIN_VALUE.nextUp(),
                 Binary256.fromRawBits(0, 0, 0, 12345), Binary256.MIN_NORMAL.nextDown(),
