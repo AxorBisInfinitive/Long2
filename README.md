@@ -18,15 +18,11 @@
 
 ## 测试
 
-`mvn test` 运行日常回归，包含六种数值类型的基本字符串解析、格式化和语法校验。全指数范围往返、随机差分、长文本以及耗时的精确中点用例通过 profile 显式运行。
-
-```powershell
+```bash
 mvn test
 mvn -Pnumeric-text test
 mvn -Pnumeric-text-extreme '-DargLine=-Xmx2g' test
 ```
-
-`numeric-text` 在日常回归之外运行扩展字符串用例。`numeric-text-extreme` 单独运行 Binary640 和 Binary1280 的极端十进制检查，其中包含千万字符级文本，可能耗时较长。也可在对应 profile 下使用 `-Dtest=类名#方法名` 选取单项。
 
 ## 作为依赖
 
