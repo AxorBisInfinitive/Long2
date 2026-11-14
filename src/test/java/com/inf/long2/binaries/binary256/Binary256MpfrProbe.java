@@ -28,7 +28,7 @@ public final class Binary256MpfrProbe {
                     case "div" -> raw(a.divide(b));
                     case "fma" -> raw(Binary256.fma(a, b, c));
                     case "rem" -> raw(a.remainder(b));
-                    case "ieee" -> raw(a.ieeeRemainder(b));
+                    case "ieee" -> raw(Binary256.ieeeRemainder(a, b));
                     case "sqrt" -> raw(Binary256.sqrt(a));
                     case "float" -> Integer.toHexString(Float.floatToRawIntBits(a.toFloat()));
                     case "double" -> Long.toHexString(Double.doubleToRawLongBits(a.toDouble()));

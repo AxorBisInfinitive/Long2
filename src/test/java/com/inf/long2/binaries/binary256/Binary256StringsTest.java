@@ -175,7 +175,7 @@ class Binary256StringsTest {
                     continue;
                 }
                 Binary256 rounded = reference(candidate.toString());
-                if (!Binary256Reference.raw(value.abs()).equals(Binary256Reference.raw(rounded))) {
+                if (!Binary256Reference.raw(Binary256.abs(value)).equals(Binary256Reference.raw(rounded))) {
                     continue;
                 }
                 int distance = best == null ? -1 : candidate.subtract(x).abs().compareTo(best.subtract(x).abs());
@@ -205,7 +205,7 @@ class Binary256StringsTest {
             assertEquals(0, expected.compareTo(new BigDecimal(value.toScientificString())));
         }
         for (int exponent = -100; exponent <= 100; exponent++) {
-            Binary256 power = Binary256.ONE.scalb(exponent);
+            Binary256 power = Binary256.scalb(Binary256.ONE, exponent);
             for (Binary256 value : List.of(power.nextDown(), power, power.nextUp())) {
                 assertEquals(shortestReference(value).stripTrailingZeros().toPlainString(), value.toString());
             }

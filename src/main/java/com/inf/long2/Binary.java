@@ -331,25 +331,8 @@ public interface Binary<T extends Binary<T>> extends Comparable<T> {
      */
     T remainder(T other);
 
-    /**
-     * 返回 {@code this - n * other}，n 为精确商的最近数学整数，中点取偶数。
-     * NaN、无穷、零除数和零余数符号的处理与 remainder 一致，但两者选取 n 的规则不同。
-     * 例如五对三的 IEEE 余数为负一，Java 浮点余数为二。
-     */
-    T ieeeRemainder(T other);
-
     /** 改变有限数和无穷的符号，交换正负零，NaN 返回 NaN 而不保证其编码信息。 */
     T negate();
-
-    /** 返回绝对值，将负零变为正零、负无穷变为正无穷，NaN 返回 NaN。 */
-    T abs();
-
-    /**
-     * 精确缩放为 {@code this * 2^scaleFactor} 后直接舍入，指数不取模，全部 long 参数均有效。
-     * 保留零和无穷的符号；有限非零结果上溢、下溢或舍入为零时按目标格式处理。
-     * 内部指数加减不得因 long 溢出而改变结果。
-     */
-    T scalb(long scaleFactor);
 
     /**
      * 返回当前值最低有效位的单位大小（ULP）。有限值的结果精确为 {@code 2^scaleExponent()}，始终为正。

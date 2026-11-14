@@ -103,7 +103,7 @@ class Binary640MultiplyCandidateTest {
             }
         }
         check(Binary640.MIN_VALUE, Binary640.MAX_VALUE);
-        check(Binary640.MIN_NORMAL.scalb(1).nextDown(), Binary640.of(0.5));
+        check(Binary640.scalb(Binary640.MIN_NORMAL, 1).nextDown(), Binary640.of(0.5));
     }
 
     @Test

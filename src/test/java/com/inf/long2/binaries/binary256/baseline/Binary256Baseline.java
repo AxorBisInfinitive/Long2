@@ -444,7 +444,6 @@ public final class Binary256Baseline implements Binary<Binary256Baseline> {
         return remainder(other, false);
     }
 
-    @Override
     public Binary256Baseline ieeeRemainder(Binary256Baseline other) {
         return remainder(other, true);
     }
@@ -492,7 +491,6 @@ public final class Binary256Baseline implements Binary<Binary256Baseline> {
         return isNaN() ? NaN : new Binary256Baseline(l0 ^ Long.MIN_VALUE, l1, l2, l3);
     }
 
-    @Override
     public Binary256Baseline abs() {
         return isNaN() ? NaN : signBit() ? new Binary256Baseline(l0 & Long.MAX_VALUE, l1, l2, l3) : this;
     }
@@ -541,7 +539,6 @@ public final class Binary256Baseline implements Binary<Binary256Baseline> {
         return fromDyadic(false, result, quantum);
     }
 
-    @Override
     public Binary256Baseline scalb(long scaleFactor) {
         if (isNaN()) {
             return NaN;

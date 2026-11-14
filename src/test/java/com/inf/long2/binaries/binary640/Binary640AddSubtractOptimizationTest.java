@@ -42,7 +42,7 @@ class Binary640AddSubtractOptimizationTest {
                         dyadic(false, patterns[(i + 1) % patterns.length], -615L - gap));
             }
         }
-        Binary640 lowerHalf = Binary640.ONE.scalb(-617);
+        Binary640 lowerHalf = Binary640.scalb(Binary640.ONE, -617);
         assertRaw(Binary640.ONE, Binary640.ONE.subtract(lowerHalf));
         assertRaw(Binary640.ONE.nextDown(), Binary640.ONE.subtract(lowerHalf.nextUp()));
     }
@@ -80,10 +80,10 @@ class Binary640AddSubtractOptimizationTest {
     void keepsRoundingParityStickyAndTheExactOverflowMidpoint() {
         for (int parity = 0; parity < 2; parity++) {
             Binary640 a = dyadic(false, HIDDEN.add(BigInteger.valueOf(parity)), -615);
-            Binary640 half = Binary640.ONE.scalb(-616);
-            for (Binary640 b : List.of(half.nextDown(), half, half.nextUp(), half.scalb(-1))) signs(a, b);
+            Binary640 half = Binary640.scalb(Binary640.ONE, -616);
+            for (Binary640 b : List.of(half.nextDown(), half, half.nextUp(), Binary640.scalb(half, -1))) signs(a, b);
         }
-        Binary640 half = Binary640.ONE.scalb(8387991);
+        Binary640 half = Binary640.scalb(Binary640.ONE, 8387991);
         for (Binary640 b : List.of(half.nextDown(), half, half.nextUp())) signs(Binary640.MAX_VALUE, b);
         assertRaw(Binary640.MAX_VALUE, Binary640.MAX_VALUE.add(half.nextDown()));
         assertRaw(Binary640.POSITIVE_INFINITY, Binary640.MAX_VALUE.add(half));
@@ -97,12 +97,12 @@ class Binary640AddSubtractOptimizationTest {
     @Test
     void normalizesRoundingCarryOnceWhenTheExactWorkspaceExceedsTenWords() {
         Binary640 belowOne = Binary640.ONE.nextDown();
-        Binary640 half = Binary640.ONE.scalb(-617);
+        Binary640 half = Binary640.scalb(Binary640.ONE, -617);
         assertRaw(Binary640.ONE, belowOne.add(half));
         assertRaw(Binary640.ONE, belowOne.subtract(half.negate()));
         assertRaw(Binary640.ONE.negate(), belowOne.negate().subtract(half));
         assertRaw(belowOne, belowOne.add(half.nextDown()));
-        Binary640 overflowHalf = Binary640.ONE.scalb(8387991);
+        Binary640 overflowHalf = Binary640.scalb(Binary640.ONE, 8387991);
         assertRaw(Binary640.POSITIVE_INFINITY, Binary640.MAX_VALUE.add(overflowHalf));
         assertRaw(Binary640.NEGATIVE_INFINITY, Binary640.MAX_VALUE.negate().subtract(overflowHalf));
     }

@@ -114,7 +114,7 @@ class Binary256Test {
             assertValue(Binary256Reference.round(integer.signum() < 0, integer.abs(), ONE, 0), actual);
             assertDouble(integer.doubleValue(), actual.toDouble());
         }
-        assertValue(Binary256.ONE.scalb(255).negate(), Binary256.of(Int256.MIN_VALUE));
+        assertValue(Binary256.scalb(Binary256.ONE, 255).negate(), Binary256.of(Int256.MIN_VALUE));
         assertValue(Binary256.ZERO, Binary256.of(Int256.ZERO));
         assertValue(Binary256.ONE.negate(), Binary256.of(Int256.of(-1L)));
     }
@@ -125,20 +125,20 @@ class Binary256Test {
         Binary256 binary = Binary256.of(value);
         assertEquals(Float.floatToIntBits((float) value), Float.floatToIntBits(binary.toFloat()));
         assertNotEquals(Float.floatToIntBits((float) binary.toDouble()), Float.floatToIntBits(binary.toFloat()));
-        assertEquals(Integer.MAX_VALUE, Binary256.ONE.scalb(64).add(Binary256.ONE).toInt());
-        assertEquals(Long.MAX_VALUE, Binary256.ONE.scalb(64).add(Binary256.ONE).toLong());
-        assertEquals(Integer.MIN_VALUE, Binary256.ONE.scalb(31).negate().toInt());
-        assertEquals(Long.MIN_VALUE, Binary256.ONE.scalb(63).negate().toLong());
+        assertEquals(Integer.MAX_VALUE, Binary256.scalb(Binary256.ONE, 64).add(Binary256.ONE).toInt());
+        assertEquals(Long.MAX_VALUE, Binary256.scalb(Binary256.ONE, 64).add(Binary256.ONE).toLong());
+        assertEquals(Integer.MIN_VALUE, Binary256.scalb(Binary256.ONE, 31).negate().toInt());
+        assertEquals(Long.MIN_VALUE, Binary256.scalb(Binary256.ONE, 63).negate().toLong());
         assertEquals(123, Binary256.of(123.75).toInt());
         assertEquals(-123, Binary256.of(-123.75).toLong());
     }
 
     @Test
     void checksTiesOverflowAndGradualUnderflow() {
-        Binary256 half = Binary256.ONE.scalb(-237);
+        Binary256 half = Binary256.scalb(Binary256.ONE, -237);
         assertValue(Binary256.ONE, Binary256.ONE.add(half));
         assertValue(Binary256.ONE.nextUp().nextUp(), Binary256.ONE.nextUp().add(half));
-        Binary256 overflowHalf = Binary256.ONE.scalb(261906);
+        Binary256 overflowHalf = Binary256.scalb(Binary256.ONE, 261906);
         assertValue(Binary256.MAX_VALUE, Binary256.MAX_VALUE.add(overflowHalf.nextDown()));
         assertValue(Binary256.POSITIVE_INFINITY, Binary256.MAX_VALUE.add(overflowHalf));
         assertValue(Binary256.ZERO, Binary256.MIN_VALUE.divide(Binary256.of(2L)));
@@ -149,16 +149,16 @@ class Binary256Test {
         assertValue(Binary256.MIN_NORMAL, Binary256.MIN_NORMAL.nextDown().add(Binary256.MIN_VALUE));
         assertValue(Binary256.MAX_VALUE, Binary256.MAX_VALUE.add(Binary256.MIN_VALUE));
         assertValue(Binary256.MAX_VALUE, Binary256.MAX_VALUE.subtract(Binary256.MIN_VALUE));
-        assertValue(Binary256.ONE.scalb(-236), Binary256.ONE.nextUp().subtract(Binary256.ONE));
+        assertValue(Binary256.scalb(Binary256.ONE, -236), Binary256.ONE.nextUp().subtract(Binary256.ONE));
     }
 
     @Test
     void fusesMultiplicationBeforeRoundingOverflowAndUnderflow() {
         assertValue(Binary256.MAX_VALUE, Binary256.fma(Binary256.MAX_VALUE, Binary256.of(2L), Binary256.MAX_VALUE.negate()));
         assertValue(Binary256.POSITIVE_INFINITY, Binary256.MAX_VALUE.multiply(Binary256.of(2L)));
-        Binary256 delta = Binary256.ONE.scalb(-119);
+        Binary256 delta = Binary256.scalb(Binary256.ONE, -119);
         Binary256 a = Binary256.ONE.add(delta), b = Binary256.ONE.subtract(delta);
-        assertValue(Binary256.ONE.scalb(-238).negate(), Binary256.fma(a, b, Binary256.ONE.negate()));
+        assertValue(Binary256.scalb(Binary256.ONE, -238).negate(), Binary256.fma(a, b, Binary256.ONE.negate()));
         assertValue(Binary256.ZERO, a.multiply(b).subtract(Binary256.ONE));
         assertValue(Binary256.MIN_VALUE.add(Binary256.MIN_VALUE),
                 Binary256.fma(Binary256.MIN_VALUE, Binary256.of(0.5), Binary256.MIN_VALUE));
@@ -179,7 +179,7 @@ class Binary256Test {
             assertValue(Binary256Reference.divide(a, b), a.divide(b));
             assertValue(Binary256Reference.fma(a, b, c), Binary256.fma(a, b, c));
             assertValue(Binary256Reference.remainder(a, b, false), a.remainder(b));
-            assertValue(Binary256Reference.remainder(a, b, true), a.ieeeRemainder(b));
+            assertValue(Binary256Reference.remainder(a, b, true), Binary256.ieeeRemainder(a, b));
         }
     }
 
@@ -187,7 +187,7 @@ class Binary256Test {
     void computesSquareRootsUsingExactMidpointComparisons() {
         Random random = new Random(0x2565007L);
         for (int i = 0; i < 160; i++) {
-            Binary256 value = randomFinite(random, true).abs();
+            Binary256 value = Binary256.abs(randomFinite(random, true));
             assertValue(Binary256Reference.sqrt(value), Binary256.sqrt(value));
         }
         for (Binary256 value : new Binary256[] {Binary256.MIN_VALUE, Binary256.MIN_NORMAL,
@@ -195,7 +195,7 @@ class Binary256Test {
             assertValue(Binary256Reference.sqrt(value), Binary256.sqrt(value));
         }
         assertValue(Binary256.of(3L), Binary256.sqrt(Binary256.of(9L)));
-        assertValue(Binary256.ONE.scalb(-131189), Binary256.sqrt(Binary256.MIN_VALUE));
+        assertValue(Binary256.scalb(Binary256.ONE, -131189), Binary256.sqrt(Binary256.MIN_VALUE));
         assertValue(Binary256.NEGATIVE_ZERO, Binary256.sqrt(Binary256.NEGATIVE_ZERO));
     }
 
@@ -205,15 +205,15 @@ class Binary256Test {
             for (long b : new long[] {2, 3, -2, -3}) {
                 Binary256 x = Binary256.of(a), y = Binary256.of(b);
                 assertDouble((double) a % b, x.remainder(y).toDouble());
-                assertDouble(Math.IEEEremainder(a, b), x.ieeeRemainder(y).toDouble());
+                assertDouble(Math.IEEEremainder(a, b), Binary256.ieeeRemainder(x, y).toDouble());
             }
         }
-        Binary256 huge = Binary256.ONE.scalb(262143);
+        Binary256 huge = Binary256.scalb(Binary256.ONE, 262143);
         Binary256 tinyDivisor = Binary256.fromRawBits(0, 0, 0, 3);
-        assertValue(Binary256Reference.remainder(huge, tinyDivisor, true), huge.ieeeRemainder(tinyDivisor));
+        assertValue(Binary256Reference.remainder(huge, tinyDivisor, true), Binary256.ieeeRemainder(huge, tinyDivisor));
         assertValue(Binary256Reference.remainder(huge, tinyDivisor, false), huge.remainder(tinyDivisor));
         assertValue(Binary256.NEGATIVE_ZERO, Binary256.of(-6L).remainder(Binary256.of(3L)));
-        assertValue(Binary256.NEGATIVE_ZERO, Binary256.of(-6L).ieeeRemainder(Binary256.of(3L)));
+        assertValue(Binary256.NEGATIVE_ZERO, Binary256.ieeeRemainder(Binary256.of(-6L), Binary256.of(3L)));
     }
 
     @Test
@@ -229,7 +229,7 @@ class Binary256Test {
                 assertDouble(a * b, x.multiply(y).toDouble());
                 assertDouble(a / b, x.divide(y).toDouble());
                 assertDouble(a % b, x.remainder(y).toDouble());
-                assertDouble(Math.IEEEremainder(a, b), x.ieeeRemainder(y).toDouble());
+                assertDouble(Math.IEEEremainder(a, b), Binary256.ieeeRemainder(x, y).toDouble());
                 for (double c : values) {
                     assertDouble(Math.fma(a, b, c), Binary256.fma(x, y, Binary256.of(c)).toDouble());
                 }
@@ -287,19 +287,19 @@ class Binary256Test {
 
     @Test
     void scalesWithLongExtremesAndCorrectSubnormalRounding() {
-        assertValue(Binary256.POSITIVE_INFINITY, Binary256.ONE.scalb(Long.MAX_VALUE));
-        assertValue(Binary256.ZERO, Binary256.ONE.scalb(Long.MIN_VALUE));
-        assertValue(Binary256.NEGATIVE_ZERO, Binary256.ONE.negate().scalb(Long.MIN_VALUE));
-        assertValue(Binary256.NEGATIVE_ZERO, Binary256.NEGATIVE_ZERO.scalb(Long.MAX_VALUE));
-        assertValue(Binary256.ONE, Binary256.MIN_VALUE.scalb(262378));
-        assertValue(Binary256.MIN_VALUE, Binary256.ONE.scalb(-262378));
-        assertValue(Binary256.ZERO, Binary256.ONE.scalb(-262379));
+        assertValue(Binary256.POSITIVE_INFINITY, Binary256.scalb(Binary256.ONE, Long.MAX_VALUE));
+        assertValue(Binary256.ZERO, Binary256.scalb(Binary256.ONE, Long.MIN_VALUE));
+        assertValue(Binary256.NEGATIVE_ZERO, Binary256.scalb(Binary256.ONE.negate(), Long.MIN_VALUE));
+        assertValue(Binary256.NEGATIVE_ZERO, Binary256.scalb(Binary256.NEGATIVE_ZERO, Long.MAX_VALUE));
+        assertValue(Binary256.ONE, Binary256.scalb(Binary256.MIN_VALUE, 262378));
+        assertValue(Binary256.MIN_VALUE, Binary256.scalb(Binary256.ONE, -262378));
+        assertValue(Binary256.ZERO, Binary256.scalb(Binary256.ONE, -262379));
         Random random = new Random(0x2565CA1L);
         for (int i = 0; i < 100; i++) {
             Binary256 value = randomFinite(random, true);
             int shift = random.nextInt(1100000) - 550000;
             Binary256Reference.Dyadic x = Binary256Reference.decode(value);
-            assertValue(Binary256Reference.round(x.negative(), x.magnitude(), ONE, x.scale() + shift), value.scalb(shift));
+            assertValue(Binary256Reference.round(x.negative(), x.magnitude(), ONE, x.scale() + shift), Binary256.scalb(value, shift));
         }
     }
 
@@ -356,13 +356,20 @@ class Binary256Test {
             assertThrows(NullPointerException.class, () -> value.multiply(null));
             assertThrows(NullPointerException.class, () -> value.divide(null));
             assertThrows(NullPointerException.class, () -> value.remainder(null));
-            assertThrows(NullPointerException.class, () -> value.ieeeRemainder(null));
+            assertThrows(NullPointerException.class, () -> Binary256.ieeeRemainder(value, null));
             assertThrows(NullPointerException.class, () -> Binary256.fma(null, value, Binary256.ZERO));
             assertThrows(NullPointerException.class, () -> Binary256.fma(value, null, Binary256.ZERO));
             assertThrows(NullPointerException.class, () -> Binary256.fma(value, Binary256.ONE, null));
             assertThrows(NullPointerException.class, () -> value.compareTo(null));
             assertThrows(NullPointerException.class, () -> value.compareNumerically(null));
         }
+    }
+
+    @Test
+    void rejectsNullOperandsInStaticMathFunctions() {
+        assertThrows(NullPointerException.class, () -> Binary256.scalb(null, 0));
+        assertThrows(NullPointerException.class, () -> Binary256.ieeeRemainder(null, Binary256.ZERO));
+        assertThrows(NullPointerException.class, () -> Binary256.abs(null));
     }
 
     private static Binary256 randomFinite(Random random, boolean wide) {

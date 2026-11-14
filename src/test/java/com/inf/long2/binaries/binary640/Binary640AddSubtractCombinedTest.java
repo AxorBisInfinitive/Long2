@@ -46,7 +46,7 @@ class Binary640AddSubtractCombinedTest {
         assertRaw(Binary640.MIN_VALUE, Binary640.MIN_NORMAL.subtract(maximumSubnormal));
         assertRaw(maximumSubnormal, Binary640.MIN_NORMAL.subtract(Binary640.MIN_VALUE));
         assertRaw(Binary640.MIN_NORMAL, maximumSubnormal.add(Binary640.MIN_VALUE));
-        Binary640 twiceMinimumNormal = Binary640.MIN_NORMAL.scalb(1);
+        Binary640 twiceMinimumNormal = Binary640.scalb(Binary640.MIN_NORMAL, 1);
         assertRaw(Binary640.MIN_NORMAL.nextUp(), twiceMinimumNormal.subtract(maximumSubnormal));
         check(Binary640.MIN_NORMAL, maximumSubnormal);
         check(Binary640.MIN_NORMAL, Binary640.MIN_VALUE);
@@ -55,10 +55,10 @@ class Binary640AddSubtractCombinedTest {
 
     @Test
     void keepsThe617RoundingBoundaryAndEffectiveSignForEitherDominantOperand() {
-        Binary640 half = Binary640.ONE.scalb(-617);
+        Binary640 half = Binary640.scalb(Binary640.ONE, -617);
         assertRaw(Binary640.ONE, Binary640.ONE.subtract(half));
         assertRaw(Binary640.ONE.nextDown(), Binary640.ONE.subtract(half.nextUp()));
-        for (Binary640 b : List.of(half.nextDown(), half, half.nextUp(), half.scalb(-1))) {
+        for (Binary640 b : List.of(half.nextDown(), half, half.nextUp(), Binary640.scalb(half, -1))) {
             check(Binary640.ONE, b);
         }
         for (Binary640 dominant : List.of(Binary640.MAX_VALUE, Binary640.MAX_VALUE.negate())) {

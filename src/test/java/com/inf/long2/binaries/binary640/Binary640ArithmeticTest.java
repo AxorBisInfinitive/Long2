@@ -31,7 +31,7 @@ class Binary640ArithmeticTest {
     void coversAlignmentThresholdsAndCancellation() {
         for (Binary640 a : new Binary640[] {Binary640.ONE, Binary640.ONE.nextUp(), Binary640.ONE.nextDown(), Binary640.MIN_NORMAL}) {
             for (int difference : new int[] {0, 1, 39, 40, 63, 64, 65, 575, 576, 615, 616, 617, 618, 619}) {
-                Binary640 b = a.scalb(-difference);
+                Binary640 b = Binary640.scalb(a, -difference);
                 assertRaw(Binary640Reference.add(a, b), a.add(b));
                 assertRaw(Binary640Reference.add(a, b.negate()), a.subtract(b));
                 assertRaw(Binary640Reference.add(b, a.negate()), b.subtract(a));

@@ -609,7 +609,7 @@ public final class Binary256Arithmetic {
         if (value.isInfinite()) {
             return POSITIVE_INFINITY;
         }
-        return ONE.scalb(value.scaleExponent());
+        return scalb(ONE, value.scaleExponent());
     }
 
     /** 接收值为有限非零数，negative 已包含调用方需要的符号变换。 */

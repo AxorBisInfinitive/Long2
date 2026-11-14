@@ -101,7 +101,7 @@ class Binary640BoundaryAuditTest {
     @Test
     void keepsSquareRootRoundingAcrossBinadesAndExponentParity() {
         for (int exponent : new int[] {-8389221, -8388606, -1001, -1, 0, 1, 1001, 8388606, 8388607}) {
-            Binary640 center = Binary640.ONE.scalb(exponent);
+            Binary640 center = Binary640.scalb(Binary640.ONE, exponent);
             for (Binary640 value : new Binary640[] {center.nextDown(), center, center.nextUp()}) {
                 if (value.isFinite() && !value.isZero()) {
                     assertRaw(Binary640Reference.sqrt(value), Binary640.sqrt(value));

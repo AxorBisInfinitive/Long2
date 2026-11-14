@@ -345,10 +345,11 @@ public final class Binary640 implements Binary<Binary640>, BinaryMath {
         return Binary640Arithmetic.remainder(this, other, false);
     }
 
-    @Override
-    public Binary640 ieeeRemainder(Binary640 other) {
-        Objects.requireNonNull(other);
-        return Binary640Arithmetic.remainder(this, other, true);
+    /** @see BinaryMath#ieeeRemainder(BinaryMath, BinaryMath) */
+    public static Binary640 ieeeRemainder(Binary640 dividend, Binary640 divisor) {
+        Objects.requireNonNull(dividend);
+        Objects.requireNonNull(divisor);
+        return Binary640Arithmetic.remainder(dividend, divisor, true);
     }
 
     @Override
@@ -356,9 +357,10 @@ public final class Binary640 implements Binary<Binary640>, BinaryMath {
         return isNaN() ? NaN : new Binary640(l0 ^ Long.MIN_VALUE, l1, l2, l3, l4, l5, l6, l7, l8, l9);
     }
 
-    @Override
-    public Binary640 abs() {
-        return isNaN() ? NaN : signBit() ? negate() : this;
+    /** @see BinaryMath#abs(BinaryMath) */
+    public static Binary640 abs(Binary640 value) {
+        Objects.requireNonNull(value);
+        return value.isNaN() ? NaN : value.signBit() ? value.negate() : value;
     }
 
     /** @see BinaryMath#fma(BinaryMath, BinaryMath, BinaryMath) */
@@ -375,9 +377,10 @@ public final class Binary640 implements Binary<Binary640>, BinaryMath {
         return Binary640Arithmetic.sqrt(value);
     }
 
-    @Override
-    public Binary640 scalb(long scaleFactor) {
-        return Binary640Arithmetic.scalb(this, scaleFactor);
+    /** @see BinaryMath#scalb(BinaryMath, long) */
+    public static Binary640 scalb(Binary640 value, long scaleFactor) {
+        Objects.requireNonNull(value);
+        return Binary640Arithmetic.scalb(value, scaleFactor);
     }
 
     @Override

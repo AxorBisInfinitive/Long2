@@ -28,7 +28,7 @@ class Binary640SqrtTest {
     void checksRandomRootsAndExactSquaresWithoutChangingInputs() {
         Random random = new Random(12345);
         for (int i = 0; i < 200; i++) {
-            Binary640 value = random(random, true).abs();
+            Binary640 value = Binary640.abs(random(random, true));
             byte[] before = value.toBytes();
             assertRaw(Binary640Reference.sqrt(value), Binary640.sqrt(value));
             assertArrayEquals(before, value.toBytes());

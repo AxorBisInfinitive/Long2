@@ -52,7 +52,7 @@ class Binary640ContractTest {
             assertThrows(NullPointerException.class, () -> value.multiply(null));
             assertThrows(NullPointerException.class, () -> value.divide(null));
             assertThrows(NullPointerException.class, () -> value.remainder(null));
-            assertThrows(NullPointerException.class, () -> value.ieeeRemainder(null));
+            assertThrows(NullPointerException.class, () -> Binary640.ieeeRemainder(value, null));
             assertThrows(NullPointerException.class, () -> Binary640.fma(null, value, Binary640.NaN));
             assertThrows(NullPointerException.class, () -> Binary640.fma(value, null, Binary640.NaN));
             assertThrows(NullPointerException.class, () -> Binary640.fma(value, Binary640.NaN, null));
@@ -86,5 +86,15 @@ class Binary640ContractTest {
         }
         assertArrayEquals(beforeA, a.toBytes());
         assertArrayEquals(beforeB, b.toBytes());
+    }
+
+    @Test
+    void checksStaticMathNullsAndAbsoluteValueSpecialCases() {
+        assertThrows(NullPointerException.class, () -> Binary640.scalb(null, 0));
+        assertThrows(NullPointerException.class, () -> Binary640.ieeeRemainder(null, Binary640.ZERO));
+        assertThrows(NullPointerException.class, () -> Binary640.abs(null));
+        assertRaw(Binary640.ZERO, Binary640.abs(Binary640.NEGATIVE_ZERO));
+        assertRaw(Binary640.POSITIVE_INFINITY, Binary640.abs(Binary640.NEGATIVE_INFINITY));
+        assertRaw(Binary640.NaN, Binary640.abs(Binary640.NaN));
     }
 }

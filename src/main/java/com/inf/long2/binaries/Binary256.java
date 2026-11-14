@@ -518,10 +518,11 @@ public final class Binary256 implements Binary<Binary256>, BinaryMath {
         return Binary256Arithmetic.remainder(this, other, false);
     }
 
-    @Override
-    public Binary256 ieeeRemainder(Binary256 other) {
-        Objects.requireNonNull(other);
-        return Binary256Arithmetic.remainder(this, other, true);
+    /** @see BinaryMath#ieeeRemainder(BinaryMath, BinaryMath) */
+    public static Binary256 ieeeRemainder(Binary256 dividend, Binary256 divisor) {
+        Objects.requireNonNull(dividend);
+        Objects.requireNonNull(divisor);
+        return Binary256Arithmetic.remainder(dividend, divisor, true);
     }
 
     @Override
@@ -529,9 +530,10 @@ public final class Binary256 implements Binary<Binary256>, BinaryMath {
         return isNaN() ? NaN : new Binary256(l0 ^ Long.MIN_VALUE, l1, l2, l3);
     }
 
-    @Override
-    public Binary256 abs() {
-        return isNaN() ? NaN : signBit() ? new Binary256(l0 & Long.MAX_VALUE, l1, l2, l3) : this;
+    /** @see BinaryMath#abs(BinaryMath) */
+    public static Binary256 abs(Binary256 value) {
+        Objects.requireNonNull(value);
+        return value.isNaN() ? NaN : value.signBit() ? new Binary256(value.l0 & Long.MAX_VALUE, value.l1, value.l2, value.l3) : value;
     }
 
     /** @see BinaryMath#fma(BinaryMath, BinaryMath, BinaryMath) */
@@ -548,9 +550,10 @@ public final class Binary256 implements Binary<Binary256>, BinaryMath {
         return Binary256Arithmetic.sqrt(value);
     }
 
-    @Override
-    public Binary256 scalb(long scaleFactor) {
-        return Binary256Arithmetic.scalb(this, scaleFactor);
+    /** @see BinaryMath#scalb(BinaryMath, long) */
+    public static Binary256 scalb(Binary256 value, long scaleFactor) {
+        Objects.requireNonNull(value);
+        return Binary256Arithmetic.scalb(value, scaleFactor);
     }
 
     @Override

@@ -58,14 +58,14 @@ class Binary640RoundingTest {
 
     @Test
     void handlesScalingExtremesAndUlpAtBothEnds() {
-        assertRaw(Binary640.POSITIVE_INFINITY, Binary640.ONE.scalb(Long.MAX_VALUE));
-        assertRaw(Binary640.ZERO, Binary640.ONE.scalb(Long.MIN_VALUE));
-        assertRaw(Binary640.NEGATIVE_ZERO, Binary640.ONE.negate().scalb(Long.MIN_VALUE));
-        assertRaw(Binary640.ONE, Binary640.MIN_VALUE.scalb(8389221));
-        assertRaw(Binary640.MIN_VALUE, Binary640.ONE.scalb(-8389221));
-        assertRaw(Binary640.ZERO, Binary640.ONE.scalb(-8389222));
-        assertRaw(Binary640.ONE.scalb(-615), Binary640.ONE.ulp());
-        assertRaw(Binary640.ONE.scalb(8387992), Binary640.MAX_VALUE.ulp());
+        assertRaw(Binary640.POSITIVE_INFINITY, Binary640.scalb(Binary640.ONE, Long.MAX_VALUE));
+        assertRaw(Binary640.ZERO, Binary640.scalb(Binary640.ONE, Long.MIN_VALUE));
+        assertRaw(Binary640.NEGATIVE_ZERO, Binary640.scalb(Binary640.ONE.negate(), Long.MIN_VALUE));
+        assertRaw(Binary640.ONE, Binary640.scalb(Binary640.MIN_VALUE, 8389221));
+        assertRaw(Binary640.MIN_VALUE, Binary640.scalb(Binary640.ONE, -8389221));
+        assertRaw(Binary640.ZERO, Binary640.scalb(Binary640.ONE, -8389222));
+        assertRaw(Binary640.scalb(Binary640.ONE, -615), Binary640.ONE.ulp());
+        assertRaw(Binary640.scalb(Binary640.ONE, 8387992), Binary640.MAX_VALUE.ulp());
         assertRaw(Binary640.MIN_VALUE, Binary640.NEGATIVE_ZERO.ulp());
         assertRaw(Binary640.MIN_VALUE, Binary640.MIN_NORMAL.nextDown().ulp());
         assertRaw(Binary640.POSITIVE_INFINITY, Binary640.NEGATIVE_INFINITY.ulp());
@@ -75,7 +75,7 @@ class Binary640RoundingTest {
             Binary640 value = random(random, i < 30);
             var decoded = Binary640Reference.decode(value);
             int shift = random.nextInt(34000001) - 17000000;
-            assertRaw(dyadic(decoded.negative(), decoded.magnitude(), decoded.scale() + shift), value.scalb(shift));
+            assertRaw(dyadic(decoded.negative(), decoded.magnitude(), decoded.scale() + shift), Binary640.scalb(value, shift));
         }
     }
 }

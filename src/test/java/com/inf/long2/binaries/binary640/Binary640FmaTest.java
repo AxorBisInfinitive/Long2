@@ -13,9 +13,9 @@ import com.inf.long2.binaries.Binary640;
 class Binary640FmaTest {
     @Test
     void preservesDeepCancellationAndOverflowRecovery() {
-        Binary640 delta = Binary640.ONE.scalb(-309);
+        Binary640 delta = Binary640.scalb(Binary640.ONE, -309);
         Binary640 a = Binary640.ONE.add(delta), b = Binary640.ONE.subtract(delta);
-        assertRaw(Binary640.ONE.scalb(-618).negate(), Binary640.fma(a, b, Binary640.ONE.negate()));
+        assertRaw(Binary640.scalb(Binary640.ONE, -618).negate(), Binary640.fma(a, b, Binary640.ONE.negate()));
         assertRaw(Binary640.ZERO, a.multiply(b).subtract(Binary640.ONE));
         assertRaw(Binary640.MAX_VALUE, Binary640.fma(Binary640.MAX_VALUE, Binary640.of(2L), Binary640.MAX_VALUE.negate()));
         assertRaw(Binary640.MIN_VALUE.nextUp(), Binary640.fma(Binary640.MIN_VALUE, Binary640.of(0.5), Binary640.MIN_VALUE));
@@ -31,7 +31,7 @@ class Binary640FmaTest {
                 var left = Binary640Reference.decode(a);
                 var right = Binary640Reference.decode(b);
                 long pe = left.scale() + right.scale() + left.magnitude().multiply(right.magnitude()).bitLength() - 1;
-                Binary640 c = Binary640.ONE.nextUp().scalb(pe - difference);
+                Binary640 c = Binary640.scalb(Binary640.ONE.nextUp(), pe - difference);
                 for (Binary640 addend : new Binary640[] {c, c.negate()}) {
                     byte[] before = a.toBytes();
                     assertRaw(Binary640Reference.fma(a, b, addend), Binary640.fma(a, b, addend));
@@ -47,9 +47,9 @@ class Binary640FmaTest {
         Binary640 b = Binary640.of(1.5);
         Binary640 c = Binary640.ONE;
         // The product exponent is one above the sum of operand exponents.
-        assertRaw(c.nextDown(), Binary640.fma(a, b.scalb(-618), c));
-        assertRaw(c, Binary640.fma(a, b.scalb(-619), c));
-        assertRaw(c, Binary640.fma(a, b.scalb(-620), c));
+        assertRaw(c.nextDown(), Binary640.fma(a, Binary640.scalb(b, -618), c));
+        assertRaw(c, Binary640.fma(a, Binary640.scalb(b, -619), c));
+        assertRaw(c, Binary640.fma(a, Binary640.scalb(b, -620), c));
     }
 
     @Test
@@ -62,7 +62,7 @@ class Binary640FmaTest {
                 Binary640 cancellation = Binary640Reference.multiply(a, b).negate();
                 assertRaw(Binary640Reference.fma(a, b, cancellation), Binary640.fma(a, b, cancellation));
                 for (int exponent : new int[] {-65, -64, -63, -1, 0, 1, 63, 64, 65}) {
-                    Binary640 addend = denseValue.scalb(exponent);
+                    Binary640 addend = Binary640.scalb(denseValue, exponent);
                     assertRaw(Binary640Reference.fma(a, b, addend), Binary640.fma(a, b, addend));
                     assertRaw(Binary640Reference.fma(a, b, addend.negate()), Binary640.fma(a, b, addend.negate()));
                 }
@@ -74,7 +74,7 @@ class Binary640FmaTest {
     void resolvesBothDirectionsOfTinyMidpointTails() {
         Binary640 a = Binary640.ONE.nextUp();
         Binary640 b = Binary640.of(1.5);
-        Binary640 tiny = Binary640.ONE.scalb(-2000);
+        Binary640 tiny = Binary640.scalb(Binary640.ONE, -2000);
         for (Binary640 x : new Binary640[] {a, a.negate()}) {
             for (Binary640 tail : new Binary640[] {tiny,tiny.negate()}) {
                 assertRaw(Binary640Reference.fma(x, b, tail), Binary640.fma(x, b, tail));
@@ -113,7 +113,7 @@ class Binary640FmaTest {
             Binary640 left = dyadic(false, a, -615), right = dyadic(false, b, -615);
             for (int gap : new int[] {1230, 1231, 1232, 1233, 1234}) {
                 for (Binary640 x : new Binary640[] {left, left.negate()}) {
-                    for (Binary640 tail : new Binary640[] {Binary640.ONE.scalb(1L - gap), Binary640.ONE.scalb(1L - gap).negate()}) {
+                    for (Binary640 tail : new Binary640[] {Binary640.scalb(Binary640.ONE, 1L - gap), Binary640.scalb(Binary640.ONE, 1L - gap).negate()}) {
                         assertRaw(Binary640Reference.fma(x, right, tail), Binary640.fma(x, right, tail));
                     }
                 }

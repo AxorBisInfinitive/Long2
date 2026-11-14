@@ -50,9 +50,9 @@ class Binary640DivisionTest {
         assertRaw(Binary640.ZERO, smallest.divide(two));
         assertRaw(Binary640.NEGATIVE_ZERO, smallest.negate().divide(two));
         assertRaw(Binary640.ZERO, smallest.divide(two.nextUp()));
-        assertRaw(smallest.scalb(1), dyadic(false, BigInteger.valueOf(3), QMIN).divide(two));
+        assertRaw(Binary640.scalb(smallest, 1), dyadic(false, BigInteger.valueOf(3), QMIN).divide(two));
 
-        Binary640 midpoint = Binary640.MIN_NORMAL.scalb(1).nextDown();
+        Binary640 midpoint = Binary640.scalb(Binary640.MIN_NORMAL, 1).nextDown();
         assertRaw(Binary640.MIN_NORMAL.nextDown(), midpoint.nextDown().divide(two));
         assertRaw(Binary640.MIN_NORMAL, midpoint.divide(two));
         assertRaw(Binary640.MIN_NORMAL, midpoint.nextUp().divide(two));

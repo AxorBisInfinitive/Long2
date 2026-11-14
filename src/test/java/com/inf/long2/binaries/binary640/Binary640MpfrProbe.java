@@ -33,9 +33,9 @@ public final class Binary640MpfrProbe {
                     case "div" -> raw(a.divide(b));
                     case "fma" -> raw(Binary640.fma(a, b, c));
                     case "rem" -> raw(a.remainder(b));
-                    case "ieee" -> raw(a.ieeeRemainder(b));
+                    case "ieee" -> raw(Binary640.ieeeRemainder(a, b));
                     case "sqrt" -> raw(Binary640.sqrt(a));
-                    case "scalb" -> raw(a.scalb(Long.parseLong(fields[2])));
+                    case "scalb" -> raw(Binary640.scalb(a, Long.parseLong(fields[2])));
                     case "float" -> Integer.toHexString(Float.floatToRawIntBits(a.toFloat()));
                     case "double" -> Long.toHexString(Double.doubleToRawLongBits(a.toDouble()));
                     case "int" -> Integer.toHexString(a.toInt());

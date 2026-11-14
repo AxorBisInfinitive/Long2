@@ -92,8 +92,8 @@ class Binary640ConversionTest {
                 }
             }
         }
-        Binary640 midpoint = Binary640.ONE.add(Binary640.ONE.scalb(-24));
-        Binary640 above = midpoint.add(Binary640.ONE.scalb(-100));
+        Binary640 midpoint = Binary640.ONE.add(Binary640.scalb(Binary640.ONE, -24));
+        Binary640 above = midpoint.add(Binary640.scalb(Binary640.ONE, -100));
         assertNotEquals(Float.floatToRawIntBits(above.toFloat()), Float.floatToRawIntBits((float) above.toDouble()));
     }
 
@@ -112,9 +112,9 @@ class Binary640ConversionTest {
                 Binary256.NEGATIVE_ZERO, Binary256.NEGATIVE_INFINITY}) {
             assertArrayEquals(value.toBytes(), Binary256.of(Binary640.of(value)).toBytes());
         }
-        Binary640 midpoint = Binary640.ONE.add(Binary640.ONE.scalb(-237));
+        Binary640 midpoint = Binary640.ONE.add(Binary640.scalb(Binary640.ONE, -237));
         assertEquals(Binary256.ONE, Binary256.of(midpoint));
-        assertEquals(Binary256.ONE.nextUp(), Binary256.of(midpoint.add(Binary640.ONE.scalb(-600))));
+        assertEquals(Binary256.ONE.nextUp(), Binary256.of(midpoint.add(Binary640.scalb(Binary640.ONE, -600))));
         assertEquals(Binary256.ZERO, Binary256.of(Binary640.MIN_VALUE));
         assertEquals(Binary256.POSITIVE_INFINITY, Binary256.of(Binary640.MAX_VALUE));
     }

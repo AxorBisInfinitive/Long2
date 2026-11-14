@@ -1443,6 +1443,6 @@ public final class Binary640Arithmetic {
     }
 
     public static Binary640 ulp(Binary640 value) {
-        return value.isNaN() ? Binary640.NaN : value.isInfinite() ? Binary640.POSITIVE_INFINITY : Binary640.ONE.scalb(value.scaleExponent());
+        return value.isNaN() ? Binary640.NaN : value.isInfinite() ? Binary640.POSITIVE_INFINITY : scalb(Binary640.ONE, value.scaleExponent());
     }
 }

@@ -101,7 +101,7 @@ class Binary640MultiplyLowZeroTest {
             Binary640 a = Binary640Reference.fromRaw(BigInteger.valueOf(odd));
             for (Binary640 b : List.of(half.nextDown(), half, half.nextUp())) check(a, b);
         }
-        Binary640 normalBoundary = Binary640.MIN_NORMAL.scalb(1).nextDown();
+        Binary640 normalBoundary = Binary640.scalb(Binary640.MIN_NORMAL, 1).nextDown();
         assertRaw(Binary640.MIN_NORMAL, normalBoundary.multiply(half));
         assertRaw(Binary640.NEGATIVE_ZERO, Binary640.MIN_VALUE.negate().multiply(half));
         BigInteger[] factors = ONE.shiftLeft(617).subtract(ONE).divideAndRemainder(BigInteger.valueOf(59233));

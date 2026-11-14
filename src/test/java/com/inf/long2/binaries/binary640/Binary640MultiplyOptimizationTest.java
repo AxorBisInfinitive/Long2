@@ -114,7 +114,7 @@ class Binary640MultiplyOptimizationTest {
             for (Binary640 neighbor : List.of(b.nextDown(), b, b.nextUp())) check(a, neighbor);
             assertRaw(scale == -616 ? Binary640.of(2L) : Binary640.POSITIVE_INFINITY, a.multiply(b));
         }
-        Binary640 twiceMinimum = Binary640.MIN_NORMAL.scalb(1).nextDown();
+        Binary640 twiceMinimum = Binary640.scalb(Binary640.MIN_NORMAL, 1).nextDown();
         check(twiceMinimum, Binary640.of(0.5));
         assertRaw(Binary640.MIN_NORMAL, twiceMinimum.multiply(Binary640.of(0.5)));
     }

@@ -22,7 +22,7 @@ import com.inf.long2.ints.Int256;
 /** 比较冻结基线的完整输出编码，NaN 的符号和 payload 差异也必须使测试失败。 */
 class Binary256CompatibilityTest {
     private enum Arithmetic {
-        ADD, SUBTRACT, MULTIPLY, DIVIDE, REMAINDER, IEEE_REMAINDER
+        ADD, SUBTRACT, MULTIPLY, DIVIDE, REMAINDER
     }
 
     private static Bits raw(Binary256 value) {
@@ -44,7 +44,6 @@ class Binary256CompatibilityTest {
             case MULTIPLY -> a.multiply(b);
             case DIVIDE -> a.divide(b);
             case REMAINDER -> a.remainder(b);
-            case IEEE_REMAINDER -> a.ieeeRemainder(b);
         };
     }
 
@@ -55,6 +54,8 @@ class Binary256CompatibilityTest {
             assertRaw(calculate(expectedA, expectedB, operation), calculate(actualA, actualB, operation),
                     operation + " a=" + a + " b=" + b);
         }
+        assertRaw(expectedA.ieeeRemainder(expectedB), Binary256.ieeeRemainder(actualA, actualB),
+                "IEEE_REMAINDER a=" + a + " b=" + b);
         assertEquals(expectedA.compareNumerically(expectedB), actualA.compareNumerically(actualB), "numeric comparison");
         assertEquals(expectedA.compareTo(expectedB), actualA.compareTo(actualB), "total comparison");
         assertEquals(expectedA.equals(expectedB), actualA.equals(actualB), "equality");
@@ -918,8 +919,8 @@ class Binary256CompatibilityTest {
             Binary256 value = encoding.actual();
             if (encoding.baseline().isNaN()) {
                 assertEquals(NAN, raw(value.negate()));
-                assertEquals(NAN, raw(value.abs()));
-                assertEquals(NAN, raw(value.scalb(0)));
+                assertEquals(NAN, raw(Binary256.abs(value)));
+                assertEquals(NAN, raw(Binary256.scalb(value, 0)));
                 assertEquals(NAN, raw(value.nextUp()));
                 assertEquals(NAN, raw(value.nextDown()));
                 assertEquals(NAN, raw(Binary256.of((Binary<?>) value)));
@@ -963,7 +964,7 @@ class Binary256CompatibilityTest {
                 }
             }
             assertRaw(expected.negate(), actual.negate(), "negate " + bits);
-            assertRaw(expected.abs(), actual.abs(), "abs " + bits);
+            assertRaw(expected.abs(), Binary256.abs(actual), "abs " + bits);
             assertRaw(expected.sqrt(), Binary256.sqrt(actual), "sqrt " + bits);
             assertRaw(expected.nextUp(), actual.nextUp(), "nextUp " + bits);
             assertRaw(expected.nextDown(), actual.nextDown(), "nextDown " + bits);
@@ -1278,7 +1279,7 @@ class Binary256CompatibilityTest {
                 for (Bits x : List.of(a, a.negative())) {
                     for (Bits y : List.of(b, b.negative())) {
                         assertRaw(x.baseline().remainder(y.baseline()), x.actual().remainder(y.actual()), "wide remainder");
-                        assertRaw(x.baseline().ieeeRemainder(y.baseline()), x.actual().ieeeRemainder(y.actual()), "wide IEEE remainder");
+                        assertRaw(x.baseline().ieeeRemainder(y.baseline()), Binary256.ieeeRemainder(x.actual(), y.actual()), "wide IEEE remainder");
                     }
                 }
             }
@@ -1296,7 +1297,7 @@ class Binary256CompatibilityTest {
         Binary256 actualA = a.actual(), actualB = b.actual();
         assertRaw(a.baseline().remainder(b.baseline()), actualA.remainder(actualB),
                 label + " remainder a=" + a + " b=" + b);
-        assertRaw(a.baseline().ieeeRemainder(b.baseline()), actualA.ieeeRemainder(actualB),
+        assertRaw(a.baseline().ieeeRemainder(b.baseline()), Binary256.ieeeRemainder(actualA, actualB),
                 label + " IEEE remainder a=" + a + " b=" + b);
         assertEquals(a, raw(actualA), "remainder receiver must remain unchanged");
         assertEquals(b, raw(actualB), "remainder divisor must remain unchanged");
@@ -1624,7 +1625,7 @@ class Binary256CompatibilityTest {
             Binary256Baseline expected = bits.baseline();
             Binary256 actual = bits.actual();
             for (long factor : factors) {
-                assertRaw(expected.scalb(factor), actual.scalb(factor), "scalb factor=" + factor + " input=" + bits);
+                assertRaw(expected.scalb(factor), Binary256.scalb(actual, factor), "scalb factor=" + factor + " input=" + bits);
             }
             if (expected.isFinite() && !expected.isZero()) {
                 BigInteger magnitude = BigInteger.ZERO;
@@ -1635,7 +1636,7 @@ class Binary256CompatibilityTest {
                 for (long boundary : new long[] {-262379 - exponent, -262142 - exponent, 262143 - exponent}) {
                     for (int delta = -1; delta <= 1; delta++) {
                         long factor = boundary + delta;
-                        assertRaw(expected.scalb(factor), actual.scalb(factor), "scalb transition factor=" + factor + " input=" + bits);
+                        assertRaw(expected.scalb(factor), Binary256.scalb(actual, factor), "scalb transition factor=" + factor + " input=" + bits);
                     }
                 }
             }
@@ -1826,6 +1827,8 @@ class Binary256CompatibilityTest {
                 assertFailure(NullPointerException.class, () -> calculate(expected, null, operation),
                         () -> calculate(actual, null, operation), operation + " null receiver=" + bits);
             }
+            assertFailure(NullPointerException.class, () -> expected.ieeeRemainder(null),
+                    () -> Binary256.ieeeRemainder(actual, null), "IEEE remainder null divisor");
             assertFailure(NullPointerException.class, () -> expected.fma(null, Binary256Baseline.ZERO), () -> Binary256.fma(actual, null, Binary256.ZERO), "FMA null multiplier");
             assertFailure(NullPointerException.class, () -> expected.fma(Binary256Baseline.ZERO, null), () -> Binary256.fma(actual, Binary256.ZERO, null), "FMA null addend");
             assertFailure(NullPointerException.class, () -> expected.compareTo(null), () -> actual.compareTo(null), "compareTo null");

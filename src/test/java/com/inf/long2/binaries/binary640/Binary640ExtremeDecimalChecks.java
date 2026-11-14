@@ -27,7 +27,7 @@ class Binary640ExtremeDecimalChecks {
 
     @Test
     void emitsAndParsesLongPlainOutputAndHandlesBeyondRangeExponents() {
-        Binary640 value = Binary640.ONE.scalb(1000000);
+        Binary640 value = Binary640.scalb(Binary640.ONE, 1000000);
         String plain = value.toString();
         assertTrue(plain.length() > 300000);
         BigDecimal decimal = new BigDecimal(plain).stripTrailingZeros();
