@@ -60,6 +60,21 @@ class Binary640SqrtTest {
     }
 
     @Test
+    void checksNewtonCorrectionAndRoundingNearPowersOfTwo() {
+        BigInteger hidden = ONE.shiftLeft(615);
+        BigInteger mask = hidden.shiftLeft(1).subtract(ONE);
+        for (BigInteger magnitude : new BigInteger[] {hidden, hidden.add(ONE), hidden.add(ONE.shiftLeft(306)),
+                mask.subtract(ONE), mask}) {
+            for (int scale : new int[] {-8389221, -616, -615, -614, 8387992}) {
+                Binary640 input = dyadic(false, magnitude, scale);
+                assertRaw(Binary640Reference.sqrt(input), input.sqrt());
+            }
+        }
+        assertRaw(Binary640.ONE, Binary640.ONE.nextDown().sqrt().nextUp());
+        assertRaw(Binary640.ONE, Binary640.ONE.nextUp().sqrt());
+    }
+
+    @Test
     void handlesSpecialValuesAndExtremeFiniteRoots() {
         assertRaw(Binary640.of(2L),Binary640.of(4L).sqrt());
         assertRaw(Binary640.NEGATIVE_ZERO,Binary640.NEGATIVE_ZERO.sqrt());

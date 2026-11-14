@@ -249,6 +249,27 @@ final class UnsignedWords {
     private static long[] reduceWideTenGroups(long[] numerator, long[] denominator, long[] quotient) {
         long[] dividend = normalizedWide(numerator, 20, 24, 20);
         long[] divisor = normalizedWide(denominator, 10, 24, 10);
+        divideWideTenGroupsInPlace(dividend, divisor, quotient);
+
+        long[] remainder = new long[10];
+        for (int i = 0; i < 9; i++) {
+            remainder[i] = (dividend[i] >>> 24) | (dividend[i + 1] << 40);
+        }
+        remainder[9] = dividend[9] >>> 24;
+        return trim(remainder);
+    }
+
+    /**
+     * 开方专用的只求商入口。首轮后的估值为 616 位，分子为 1231 或 1232 位。
+     * 三个工作区由调用方独占，每轮完整覆盖。
+     */
+    static void sqrtQuotient(long[] radicand, long[] root, long[] dividend, long[] divisor, long[] quotient) {
+        normalizeWideInto(radicand, 20, 24, dividend);
+        normalizeWideInto(root, 10, 24, divisor);
+        divideWideTenGroupsInPlace(dividend, divisor, quotient);
+    }
+
+    private static void divideWideTenGroupsInPlace(long[] dividend, long[] divisor, long[] quotient) {
         long top = divisor[9], second = divisor[8];
         long reciprocal = wideReciprocal(top);
         // 最高十组小于除数，商的第十一组为零，直接从第十组开始。
@@ -262,13 +283,6 @@ final class UnsignedWords {
                 quotient[j] = estimate;
             }
         }
-
-        long[] remainder = new long[10];
-        for (int i = 0; i < 9; i++) {
-            remainder[i] = (dividend[i] >>> 24) | (dividend[i + 1] << 40);
-        }
-        remainder[9] = dividend[9] >>> 24;
-        return trim(remainder);
     }
 
     /**
@@ -364,9 +378,14 @@ final class UnsignedWords {
      */
     private static long[] normalizedWide(long[] value, int length, int shift, int capacity) {
         long[] result = new long[capacity];
+        normalizeWideInto(value, length, shift, result);
+        return result;
+    }
+
+    private static void normalizeWideInto(long[] value, int length, int shift, long[] result) {
         if (shift == 0) {
             System.arraycopy(value, 0, result, 0, length);
-            return result;
+            return;
         }
         long carry = 0;
         for (int i = 0; i < length; i++) {
@@ -374,10 +393,9 @@ final class UnsignedWords {
             result[i] = (current << shift) | carry;
             carry = current >>> (64 - shift);
         }
-        if (length < capacity) {
+        if (length < result.length) {
             result[length] = carry;
         }
-        return result;
     }
 
     /** floor((2^128-1)/top)-2^64 等于无符号双组数 (~top, -1) 除以 top 的商。 */

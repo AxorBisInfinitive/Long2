@@ -1555,7 +1555,10 @@ final class Binary640Math {
         if (value.isZero() || value.isInfinite()) {
             return value;
         }
-        long[] magnitude = magnitude(value);
+        long[] magnitude = new long[10];
+        for (int i = 0; i < 10; i++) {
+            magnitude[i] = value.getSignificandLong(9 - i);
+        }
         long exponent = exponent(magnitude, value.scaleExponent());
         long quantum = Math.floorDiv(exponent, 2) - 615;
         int shift = Math.toIntExact(value.scaleExponent() - 2 * quantum);
@@ -1572,10 +1575,12 @@ final class Binary640Math {
         // 首轮的除数是 seed * 2^552；先移掉分子的低位，整数商保持不变。
         long[] quotient = seed == 0 ? sqrtHigh(radicand, 616)
                 : UnsignedWords.divide(sqrtHigh(radicand, 552), new long[] {seed}).quotient();
-        root = sqrtHigh(addSqrtWords(root, quotient), 1);
+        averageSqrtWords(root, quotient);
+        long[] dividend = new long[20], divisor = new long[10];
+        quotient = new long[10];
         for (int i = 1; i < 4; i++) {
-            quotient = UnsignedWords.divide(radicand, root).quotient();
-            root = sqrtHigh(addSqrtWords(root, quotient), 1);
+            UnsignedWords.sqrtQuotient(radicand, root, dividend, divisor, quotient);
+            averageSqrtWords(root, quotient);
         }
         // 四轮后根为 floor(sqrt(N)) 或其后继。至多减一，平方同步减去 2*root-1。
         long[] square = UnsignedWords.multiply(root, root);
@@ -1597,6 +1602,21 @@ final class Binary640Math {
             high[i] = shiftedWord(value, i, distance);
         }
         return high;
+    }
+
+    /** 先原地求和，再右移一位。根与商至多 617 位，十组足够保存进位。 */
+    private static void averageSqrtWords(long[] root, long[] quotient) {
+        long carry = 0;
+        for (int i = 0; i < root.length; i++) {
+            long a = root[i], b = UnsignedWords.word(quotient, i);
+            long partial = a + b;
+            long sum = partial + carry;
+            carry = Long.compareUnsigned(partial, a) < 0 || Long.compareUnsigned(sum, partial) < 0 ? 1 : 0;
+            root[i] = sum;
+        }
+        for (int i = 0; i < root.length; i++) {
+            root[i] = shiftedWord(root, i, 1);
+        }
     }
 
     private static long[] addSqrtWords(long[] a, long[] b) {
