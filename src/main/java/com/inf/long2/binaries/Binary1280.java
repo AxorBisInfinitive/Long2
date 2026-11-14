@@ -3,6 +3,7 @@ package com.inf.long2.binaries;
 import java.util.Objects;
 
 import com.inf.long2.Binary;
+import com.inf.long2.BinaryMath;
 import com.inf.long2.Int;
 import com.inf.long2.binaries.binary1280.Binary1280Arithmetic;
 import com.inf.long2.binaries.binary1280.Binary1280Decimal;
@@ -15,7 +16,7 @@ import static com.inf.long2.binaries.binary1280.Binary1280Encoding.*;
  * 1280 位二进制浮点数，原始交换编码为 160 字节大端序。
  * 符号占一位，偏置指数占 28 位，小数字段占 1251 位，正常数精度为 1252 位。
  */
-public final class Binary1280 implements Binary<Binary1280> {
+public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
     private static final long INFINITY_TOP = 0x7fff_fff8_0000_0000L;
     private static final long NAN_TOP = 0x7fff_fffc_0000_0000L;
 
@@ -383,6 +384,54 @@ public final class Binary1280 implements Binary<Binary1280> {
     public Binary1280 remainder(Binary1280 other) {
         Objects.requireNonNull(other);
         return Binary1280Arithmetic.remainder(this, other);
+    }
+
+    /** @see BinaryMath#ieeeRemainder(BinaryMath, BinaryMath) */
+    public static Binary1280 ieeeRemainder(Binary1280 dividend, Binary1280 divisor) {
+        Objects.requireNonNull(dividend);
+        Objects.requireNonNull(divisor);
+        return Binary1280Arithmetic.ieeeRemainder(dividend, divisor);
+    }
+
+    /** @see BinaryMath#fma(BinaryMath, BinaryMath, BinaryMath) */
+    public static Binary1280 fma(Binary1280 multiplicand, Binary1280 multiplier, Binary1280 addend) {
+        Objects.requireNonNull(multiplicand);
+        Objects.requireNonNull(multiplier);
+        Objects.requireNonNull(addend);
+        return Binary1280Arithmetic.fma(multiplicand, multiplier, addend);
+    }
+
+    /** @see BinaryMath#sqrt(BinaryMath) */
+    public static Binary1280 sqrt(Binary1280 value) {
+        return Binary1280Arithmetic.sqrt(Objects.requireNonNull(value));
+    }
+
+    /** @see BinaryMath#scalb(BinaryMath, long) */
+    public static Binary1280 scalb(Binary1280 value, long scaleFactor) {
+        Objects.requireNonNull(value);
+        if (value.isNaN()) {
+            return NaN;
+        }
+        if (value.isZero() || value.isInfinite()) {
+            return value;
+        }
+        long[] magnitude = magnitude(value);
+        long scale = value.scaleExponent();
+        long exponent = scale + UnsignedWords.bitLength(magnitude) - 1;
+        // 先比较允许的增量，避免 scaleFactor 在相加时回绕。
+        if (scaleFactor > EMAX - exponent) {
+            return infinity(value.signBit());
+        }
+        if (scaleFactor < QMIN - 1L - exponent) {
+            return zero(value.signBit());
+        }
+        return Binary1280Rounding.roundDyadic(value.signBit(), magnitude, scale + scaleFactor);
+    }
+
+    /** @see BinaryMath#abs(BinaryMath) */
+    public static Binary1280 abs(Binary1280 value) {
+        Objects.requireNonNull(value);
+        return value.isNaN() ? NaN : value.signBit() ? value.negate() : value;
     }
 
     @Override

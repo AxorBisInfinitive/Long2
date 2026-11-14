@@ -29,8 +29,7 @@ public final class Binary1280Arithmetic {
         }
         long[] am = magnitude(a), bm = magnitude(b);
         long aq = a.scaleExponent(), bq = b.scaleExponent();
-        long ae = aq + UnsignedWords.bitLength(am) - 1;
-        long be = bq + UnsignedWords.bitLength(bm) - 1;
+        long ae = exponent(am, aq), be = exponent(bm, bq);
         // 正常二次幂的下侧中点更近，须保留指数差为 p+1 的项。
         if (ae - be >= PRECISION + 2) {
             return a;
@@ -38,6 +37,15 @@ public final class Binary1280Arithmetic {
         if (be - ae >= PRECISION + 2) {
             return subtract ? b.negate() : b;
         }
+        return sum(am, aq, ae, aNegative, bm, bq, be, bNegative);
+    }
+
+    private static long exponent(long[] magnitude, long scale) {
+        return scale + UnsignedWords.bitLength(magnitude) - 1;
+    }
+
+    private static Binary1280 sum(long[] am, long aq, long ae, boolean aNegative,
+            long[] bm, long bq, long be, boolean bNegative) {
         long scale = Math.min(aq, bq);
         int ashift = Math.toIntExact(aq - scale), bshift = Math.toIntExact(bq - scale);
         boolean adding = aNegative == bNegative;
@@ -74,7 +82,7 @@ public final class Binary1280Arithmetic {
     }
 
     public static Binary1280 multiply(Binary1280 a, Binary1280 b) {
-        if (a.isNaN() || b.isNaN() || a.isZero() && b.isInfinite() || a.isInfinite() && b.isZero()) {
+        if (invalidProduct(a, b)) {
             return Binary1280.NaN;
         }
         boolean negative = a.signBit() ^ b.signBit();
@@ -84,6 +92,18 @@ public final class Binary1280Arithmetic {
         if (a.isZero() || b.isZero()) {
             return zero(negative);
         }
+        Product product = multiplyFinite(a, b);
+        return roundDyadic(negative, product.magnitude(), product.scale());
+    }
+
+    private static boolean invalidProduct(Binary1280 a, Binary1280 b) {
+        return a.isNaN() || b.isNaN() || a.isZero() && b.isInfinite() || a.isInfinite() && b.isZero();
+    }
+
+    private record Product(long[] magnitude, long scale) {
+    }
+
+    private static Product multiplyFinite(Binary1280 a, Binary1280 b) {
         long[] am = UnsignedWords.trim(magnitude(a)), bm = UnsignedWords.trim(magnitude(b));
         int az = lowZeroWords(am), bz = lowZeroWords(bm);
         if (az != 0) {
@@ -93,7 +113,42 @@ public final class Binary1280Arithmetic {
             bm = Arrays.copyOfRange(bm, bz, bm.length);
         }
         long scale = a.scaleExponent() + b.scaleExponent() + 64L * (az + bz);
-        return roundDyadic(negative, UnsignedWords.multiply(am, bm), scale);
+        return new Product(UnsignedWords.multiply(am, bm), scale);
+    }
+
+    public static Binary1280 fma(Binary1280 a, Binary1280 b, Binary1280 c) {
+        if (c.isNaN() || invalidProduct(a, b)) {
+            return Binary1280.NaN;
+        }
+        boolean negative = a.signBit() ^ b.signBit();
+        if (a.isInfinite() || b.isInfinite()) {
+            return c.isInfinite() && negative != c.signBit() ? Binary1280.NaN : infinity(negative);
+        }
+        if (c.isInfinite()) {
+            return c;
+        }
+        if (a.isZero() || b.isZero()) {
+            return c.isZero() ? zero(negative && c.signBit()) : c;
+        }
+        Product product = multiplyFinite(a, b);
+        if (c.isZero()) {
+            return roundDyadic(negative, product.magnitude(), product.scale());
+        }
+        long pe = exponent(product.magnitude(), product.scale());
+        if (pe >= EMAX + 2L) {
+            return infinity(negative);
+        }
+        long[] cm = magnitude(c);
+        long cq = c.scaleExponent(), ce = exponent(cm, cq);
+        long difference = pe - ce;
+        if (difference <= -(PRECISION + 2)) {
+            return c;
+        }
+        // 尾项小于乘积的最低位间距，只会改变精确中点的舍入方向。
+        if (difference >= 2 * PRECISION + 1) {
+            return roundDyadic(negative, product.magnitude(), product.scale(), negative == c.signBit() ? 1 : -1);
+        }
+        return sum(product.magnitude(), product.scale(), pe, negative, cm, cq, ce, c.signBit());
     }
 
     public static Binary1280 divide(Binary1280 a, Binary1280 b) {
@@ -117,6 +172,14 @@ public final class Binary1280Arithmetic {
     }
 
     public static Binary1280 remainder(Binary1280 a, Binary1280 b) {
+        return remainder(a, b, false);
+    }
+
+    public static Binary1280 ieeeRemainder(Binary1280 a, Binary1280 b) {
+        return remainder(a, b, true);
+    }
+
+    private static Binary1280 remainder(Binary1280 a, Binary1280 b, boolean nearest) {
         if (a.isNaN() || b.isNaN() || a.isInfinite() || b.isZero()) {
             return Binary1280.NaN;
         }
@@ -125,22 +188,98 @@ public final class Binary1280Arithmetic {
         }
         long[] am = magnitude(a), bm = magnitude(b);
         long aq = a.scaleExponent(), bq = b.scaleExponent();
-        long ae = aq + UnsignedWords.bitLength(am) - 1, be = bq + UnsignedWords.bitLength(bm) - 1;
-        if (ae < be) {
+        long ae = exponent(am, aq), be = exponent(bm, bq);
+        long scale = Math.min(aq, bq);
+        if (nearest ? atMostHalf(am, aq, ae, bm, bq, be) : ae < be) {
             return a;
         }
         long shift = aq - bq;
         long[] residue;
-        if (shift < 0) {
-            residue = UnsignedWords.remainder(am, UnsignedWords.left(bm, Math.toIntExact(-shift)));
-        } else if (shift <= PRECISION) {
-            residue = UnsignedWords.remainder(UnsignedWords.left(am, (int) shift), bm);
+        boolean odd;
+        if (shift <= PRECISION) {
+            if (shift < 0) {
+                bm = UnsignedWords.left(bm, Math.toIntExact(-shift));
+            } else {
+                am = UnsignedWords.left(am, (int) shift);
+            }
+            long[] quotientLow = nearest ? new long[1] : null;
+            residue = UnsignedWords.remainder(am, bm, quotientLow);
+            odd = nearest && (quotientLow[0] & 1) != 0;
         } else {
-            long[] factor = UnsignedWords.powerOfTwoMod(shift, bm);
-            long[] reduced = UnsignedWords.remainder(am, bm);
-            residue = UnsignedWords.remainder(UnsignedWords.multiply(reduced, factor), bm);
+            // 模 2D 同时保留余数和截断商的奇偶。
+            long[] modulus = nearest ? UnsignedWords.left(bm, 1) : bm;
+            long[] factor = UnsignedWords.powerOfTwoMod(shift, modulus);
+            long[] reduced = UnsignedWords.remainder(am, modulus);
+            residue = UnsignedWords.remainder(UnsignedWords.multiply(reduced, factor), modulus);
+            odd = nearest && UnsignedWords.compare(residue, bm) >= 0;
+            if (odd) {
+                residue = UnsignedWords.subtract(residue, bm);
+            }
         }
-        return roundDyadic(a.signBit(), residue, Math.min(aq, bq));
+        boolean negative = a.signBit();
+        if (nearest) {
+            int half = -UnsignedWords.compareShifted(bm, residue, 1);
+            if (half > 0 || half == 0 && odd) {
+                residue = UnsignedWords.subtract(bm, residue);
+                negative = !negative;
+            }
+        }
+        return roundDyadic(negative, residue, scale);
+    }
+
+    private static boolean atMostHalf(long[] a, long aq, long ae, long[] b, long bq, long be) {
+        if (ae + 1 != be) {
+            return ae + 1 < be;
+        }
+        long scale = Math.min(aq + 1, bq);
+        return compareAligned(a, Math.toIntExact(aq + 1 - scale), b, Math.toIntExact(bq - scale),
+                ae + 1, be) <= 0;
+    }
+
+    public static Binary1280 sqrt(Binary1280 value) {
+        if (value.isNaN() || value.signBit() && !value.isZero()) {
+            return Binary1280.NaN;
+        }
+        if (value.isZero() || value.isInfinite()) {
+            return value;
+        }
+        long[] magnitude = magnitude(value);
+        long scale = value.scaleExponent();
+        long quantum = Math.floorDiv(exponent(magnitude, scale), 2) - FRACTION_BITS;
+        int shift = Math.toIntExact(scale - 2 * quantum);
+        long[] root = new long[WORDS], residue = new long[WORDS], trial = new long[WORDS];
+        for (int pair = PRECISION - 1; pair >= 0; pair--) {
+            // 位对从偶数位开始，始终完整地落在一个分组内。
+            int bit = 2 * pair;
+            long next = (shiftedWord(magnitude, bit / 64, -shift) >>> (bit & 63)) & 3;
+            for (int i = WORDS - 1; i >= 0; i--) {
+                residue[i] = shiftedWord(residue, i, -2);
+                trial[i] = shiftedWord(root, i, -2);
+            }
+            residue[0] |= next;
+            trial[0] |= 1;
+            boolean accepted = UnsignedWords.compare(residue, trial) >= 0;
+            if (accepted) {
+                subtractInPlace(residue, trial);
+            }
+            for (int i = WORDS - 1; i >= 0; i--) {
+                root[i] = shiftedWord(root, i, -1);
+            }
+            root[0] |= accepted ? 1 : 0;
+        }
+        // 若 N = S² + R，则 N 超过中点平方 S² + S + 1/4 当且仅当 R > S。
+        return packRounded(false, root, quantum, UnsignedWords.compare(residue, root) > 0);
+    }
+
+    private static void subtractInPlace(long[] larger, long[] smaller) {
+        long borrow = 0;
+        for (int i = 0; i < larger.length; i++) {
+            long word = larger[i], subtrahend = smaller[i];
+            long difference = word - subtrahend;
+            larger[i] = difference - borrow;
+            borrow = Long.compareUnsigned(word, subtrahend) < 0
+                    || Long.compareUnsigned(difference, borrow) < 0 ? 1 : 0;
+        }
     }
 
     private static int lowZeroWords(long[] nonzero) {

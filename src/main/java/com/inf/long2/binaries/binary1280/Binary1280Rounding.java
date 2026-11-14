@@ -42,6 +42,11 @@ public final class Binary1280Rounding {
     }
 
     public static Binary1280 roundDyadic(boolean negative, long[] magnitude, long scale) {
+        return roundDyadic(negative, magnitude, scale, 0);
+    }
+
+    /** tailDirection 只在精确中点决定幅值增减。调用方保证尾项无法跨过非中点与舍入边界之间的距离。 */
+    static Binary1280 roundDyadic(boolean negative, long[] magnitude, long scale, int tailDirection) {
         int length = UnsignedWords.bitLength(magnitude);
         if (length == 0) {
             return zero(negative);
@@ -60,7 +65,8 @@ public final class Binary1280Rounding {
             kept[i] = shiftedWord(magnitude, i, discarded);
         }
         boolean increment = discarded > 0 && UnsignedWords.bit(magnitude, discarded - 1)
-                && ((kept[0] & 1) != 0 || UnsignedWords.anyLow(magnitude, discarded - 1));
+                && (UnsignedWords.anyLow(magnitude, discarded - 1)
+                        || (tailDirection == 0 ? (kept[0] & 1) != 0 : tailDirection > 0));
         return packRounded(negative, kept, quantum, increment);
     }
 

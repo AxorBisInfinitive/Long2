@@ -40,7 +40,7 @@ class Binary1280Test {
         assertThrows(IllegalArgumentException.class, () -> of(new byte[159]));
         assertThrows(IllegalArgumentException.class, () -> of(new byte[161]));
         assertThrows(NullPointerException.class, () -> of((byte[]) null));
-        assertFalse(BinaryMath.class.isAssignableFrom(Binary1280.class));
+        assertTrue(BinaryMath.class.isAssignableFrom(Binary1280.class));
 
         for (int i = 0; i < 1280; i++) {
             BigInteger pattern = BigInteger.ONE.shiftLeft(i);
