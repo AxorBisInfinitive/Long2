@@ -1,6 +1,5 @@
 package com.inf.long2.binaries.binary640;
 
-import com.inf.long2.binaries.Binary640;
 import com.inf.long2.binaries.internal.UnsignedWords;
 
 import static com.inf.long2.binaries.binary640.Binary640Encoding.BIAS;
@@ -20,7 +19,7 @@ import static com.inf.long2.binaries.binary640.Binary640Rounding.roundRational;
 import static com.inf.long2.binaries.binary640.Binary640Rounding.shiftedWord;
 
 /** Binary640 算术。无符号幅值低组在前，原地操作只修改本次调用独占的数组。 */
-public final class Binary640Arithmetic {
+final class Binary640Arithmetic {
     private Binary640Arithmetic() {
     }
 
@@ -28,7 +27,7 @@ public final class Binary640Arithmetic {
         return scale + UnsignedWords.bitLength(magnitude) - 1;
     }
 
-    public static Binary640 add(Binary640 a, Binary640 b, boolean subtract) {
+    static Binary640 add(Binary640 a, Binary640 b, boolean subtract) {
         if (a.isNaN() || b.isNaN()) {
             return Binary640.NaN;
         }
@@ -293,7 +292,7 @@ public final class Binary640Arithmetic {
     }
 
     /** 对齐范围已由调用方证明，a 是独占乘积，结果只在最终位权上舍入。 */
-    public static Binary640 multiply(Binary640 a, Binary640 b) {
+    static Binary640 multiply(Binary640 a, Binary640 b) {
         if (a.isNaN() || b.isNaN() || a.isZero() && b.isInfinite() || a.isInfinite() && b.isZero()) {
             return Binary640.NaN;
         }
@@ -1086,7 +1085,7 @@ public final class Binary640Arithmetic {
         }
     }
 
-    public static Binary640 fma(Binary640 a, Binary640 b, Binary640 c) {
+    static Binary640 fma(Binary640 a, Binary640 b, Binary640 c) {
         if (a.isNaN() || b.isNaN() || c.isNaN() || a.isZero() && b.isInfinite() || a.isInfinite() && b.isZero()) {
             return Binary640.NaN;
         }
@@ -1190,7 +1189,7 @@ public final class Binary640Arithmetic {
         return 0;
     }
 
-    public static Binary640 divide(Binary640 a, Binary640 b) {
+    static Binary640 divide(Binary640 a, Binary640 b) {
         if (a.isNaN() || b.isNaN() || a.isZero() && b.isZero() || a.isInfinite() && b.isInfinite()) {
             return Binary640.NaN;
         }
@@ -1234,7 +1233,7 @@ public final class Binary640Arithmetic {
         return compact;
     }
 
-    public static Binary640 remainder(Binary640 a, Binary640 b, boolean nearest) {
+    static Binary640 remainder(Binary640 a, Binary640 b, boolean nearest) {
         if (a.isNaN() || b.isNaN() || a.isInfinite() || b.isZero()) {
             return Binary640.NaN;
         }
@@ -1337,7 +1336,7 @@ public final class Binary640Arithmetic {
         return true;
     }
 
-    public static Binary640 sqrt(Binary640 value) {
+    static Binary640 sqrt(Binary640 value) {
         if (value.isNaN() || value.signBit() && !value.isZero()) {
             return Binary640.NaN;
         }
@@ -1423,7 +1422,7 @@ public final class Binary640Arithmetic {
         return UnsignedWords.trim(sum);
     }
 
-    public static Binary640 scalb(Binary640 value, long scaleFactor) {
+    static Binary640 scalb(Binary640 value, long scaleFactor) {
         if (value.isNaN()) {
             return Binary640.NaN;
         }
@@ -1442,7 +1441,7 @@ public final class Binary640Arithmetic {
         return roundDyadic(value.signBit(), magnitude, scale + scaleFactor);
     }
 
-    public static Binary640 ulp(Binary640 value) {
+    static Binary640 ulp(Binary640 value) {
         return value.isNaN() ? Binary640.NaN : value.isInfinite() ? Binary640.POSITIVE_INFINITY : scalb(Binary640.ONE, value.scaleExponent());
     }
 }

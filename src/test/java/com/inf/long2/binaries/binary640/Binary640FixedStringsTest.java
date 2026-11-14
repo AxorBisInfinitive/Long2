@@ -10,7 +10,6 @@ import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 
-import com.inf.long2.binaries.Binary640;
 
 class Binary640FixedStringsTest {
     private static void check(Binary640 value, int digits) {

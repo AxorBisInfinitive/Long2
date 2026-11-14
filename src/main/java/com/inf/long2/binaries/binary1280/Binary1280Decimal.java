@@ -4,12 +4,11 @@ import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Objects;
 
-import com.inf.long2.binaries.Binary1280;
 
 import static com.inf.long2.binaries.binary1280.Binary1280Encoding.*;
 
 /** 对短文本使用有向整数区间，临界比较和长输出使用精确整数。 */
-public final class Binary1280Decimal {
+final class Binary1280Decimal {
     private static final BigInteger FIVE = BigInteger.valueOf(5);
     private static final long EXPONENT_LIMIT = Long.MAX_VALUE / 4;
     private static final int DECIMAL_LIMIT = 41_000_000;
@@ -29,7 +28,7 @@ public final class Binary1280Decimal {
             int first, int last, long scale) {
     }
 
-    public static boolean isValid(String text) {
+    static boolean isValid(String text) {
         return scan(text) != null;
     }
 
@@ -103,7 +102,7 @@ public final class Binary1280Decimal {
         return new ScannedDecimal(TextKind.FINITE, negative, start, end, first, last, scale);
     }
 
-    public static Binary1280 parse(String text) {
+    static Binary1280 parse(String text) {
         Objects.requireNonNull(text);
         ScannedDecimal scanned = scan(text);
         if (scanned == null) {
@@ -199,7 +198,7 @@ public final class Binary1280Decimal {
         return Binary1280Rounding.roundDyadic(false, words, scale);
     }
 
-    public static String format(Binary1280 value, boolean scientific) {
+    static String format(Binary1280 value, boolean scientific) {
         if (!value.isFinite() || value.isZero()) {
             return special(value, scientific, -1);
         }
@@ -214,7 +213,7 @@ public final class Binary1280Decimal {
         return plainFixed(value.signBit(), digits, Math.max(decimal.scale(), 0), fraction);
     }
 
-    public static String format(Binary1280 value, boolean scientific, int fractionDigits) {
+    static String format(Binary1280 value, boolean scientific, int fractionDigits) {
         if (fractionDigits < 0) {
             throw new IllegalArgumentException("fractionDigits must not be negative");
         }

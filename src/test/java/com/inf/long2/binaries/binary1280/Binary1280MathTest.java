@@ -5,10 +5,9 @@ import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 
-import com.inf.long2.binaries.Binary1280;
 import com.inf.long2.binaries.binary1280.Binary1280Reference.Dyadic;
 
-import static com.inf.long2.binaries.Binary1280.*;
+import static com.inf.long2.binaries.binary1280.Binary1280.*;
 import static com.inf.long2.binaries.binary1280.Binary1280Reference.*;
 import static org.junit.jupiter.api.Assertions.*;
 

@@ -11,14 +11,13 @@ import com.inf.long2.Binary;
 import com.inf.long2.Binary.Comparison;
 import com.inf.long2.BinaryMath;
 import com.inf.long2.Int;
-import com.inf.long2.binaries.Binary1280;
-import com.inf.long2.binaries.Binary256;
-import com.inf.long2.binaries.Binary640;
+import com.inf.long2.binaries.binary256.Binary256;
+import com.inf.long2.binaries.binary640.Binary640;
 import com.inf.long2.ints.Int1024;
 import com.inf.long2.ints.Int256;
 import com.inf.long2.ints.Int512;
 
-import static com.inf.long2.binaries.Binary1280.*;
+import static com.inf.long2.binaries.binary1280.Binary1280.*;
 import static com.inf.long2.binaries.binary1280.Binary1280Reference.*;
 import static org.junit.jupiter.api.Assertions.*;
 

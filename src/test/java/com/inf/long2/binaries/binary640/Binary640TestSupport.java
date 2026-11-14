@@ -7,7 +7,6 @@ import java.math.BigInteger;
 import java.util.Random;
 
 import com.inf.long2.Binary;
-import com.inf.long2.binaries.Binary640;
 
 final class Binary640TestSupport {
     static final BigInteger ONE = BigInteger.ONE;

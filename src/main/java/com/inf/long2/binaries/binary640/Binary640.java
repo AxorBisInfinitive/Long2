@@ -1,35 +1,39 @@
-package com.inf.long2.binaries;
+package com.inf.long2.binaries.binary640;
 
 import java.util.Objects;
 
 import com.inf.long2.Binary;
 import com.inf.long2.BinaryMath;
 import com.inf.long2.Int;
-import com.inf.long2.binaries.binary1280.Binary1280Arithmetic;
-import com.inf.long2.binaries.binary1280.Binary1280Decimal;
-import com.inf.long2.binaries.binary1280.Binary1280Rounding;
 import com.inf.long2.binaries.internal.UnsignedWords;
 
-import static com.inf.long2.binaries.binary1280.Binary1280Encoding.*;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.BIAS;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.FRACTION_MASK;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.HIDDEN_BIT;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.QMIN;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.infinity;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.magnitude;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.raw;
+import static com.inf.long2.binaries.binary640.Binary640Encoding.zero;
 
 /**
- * 1280 位二进制浮点数，原始交换编码为 160 字节大端序。
- * 符号占一位，偏置指数占 28 位，小数字段占 1251 位，正常数精度为 1252 位。
+ * 640 位二进制浮点数，原始编码按大端序保存在十个 long 中。
+ * 符号占一位，偏置指数占 24 位，小数字段占 615 位，正常数精度为 616 位。
  */
-public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
-    private static final long INFINITY_TOP = 0x7fff_fff8_0000_0000L;
-    private static final long NAN_TOP = 0x7fff_fffc_0000_0000L;
+public final class Binary640 implements Binary<Binary640>, BinaryMath {
+    private static final long INFINITY_TOP = 0x7fff_ff80_0000_0000L;
+    private static final long NAN_TOP = 0x7fff_ffc0_0000_0000L;
 
-    public static final Format FORMAT = new Format(PRECISION, EMIN, EMAX);
-    public static final Binary1280 ZERO = new Binary1280(0, 0, 0);
-    public static final Binary1280 NEGATIVE_ZERO = new Binary1280(Long.MIN_VALUE, 0, 0);
-    public static final Binary1280 ONE = new Binary1280(0x3fff_fff8_0000_0000L, 0, 0);
-    public static final Binary1280 MIN_VALUE = new Binary1280(0, 0, 1);
-    public static final Binary1280 MIN_NORMAL = new Binary1280(HIDDEN_BIT, 0, 0);
-    public static final Binary1280 MAX_VALUE = new Binary1280(0x7fff_fff7_ffff_ffffL, -1, -1);
-    public static final Binary1280 POSITIVE_INFINITY = new Binary1280(INFINITY_TOP, 0, 0);
-    public static final Binary1280 NEGATIVE_INFINITY = new Binary1280(INFINITY_TOP | Long.MIN_VALUE, 0, 0);
-    public static final Binary1280 NaN = new Binary1280(NAN_TOP, 0, 0);
+    public static final Format FORMAT = new Format(616, -8388606, 8388607);
+    public static final Binary640 ZERO = new Binary640(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    public static final Binary640 NEGATIVE_ZERO = new Binary640(Long.MIN_VALUE, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    public static final Binary640 ONE = new Binary640(0x3fff_ff80_0000_0000L, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    public static final Binary640 MIN_VALUE = new Binary640(0, 0, 0, 0, 0, 0, 0, 0, 0, 1);
+    public static final Binary640 MIN_NORMAL = new Binary640(HIDDEN_BIT, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    public static final Binary640 MAX_VALUE = new Binary640(0x7fff_ff7f_ffff_ffffL, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+    public static final Binary640 POSITIVE_INFINITY = new Binary640(INFINITY_TOP, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    public static final Binary640 NEGATIVE_INFINITY = new Binary640(INFINITY_TOP | Long.MIN_VALUE, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    public static final Binary640 NaN = new Binary640(NAN_TOP, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
     private final long l0;
     private final long l1;
@@ -41,26 +45,9 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
     private final long l7;
     private final long l8;
     private final long l9;
-    private final long l10;
-    private final long l11;
-    private final long l12;
-    private final long l13;
-    private final long l14;
-    private final long l15;
-    private final long l16;
-    private final long l17;
-    private final long l18;
-    private final long l19;
 
-    private Binary1280(long top, long middle, long bottom) {
-        this(top, middle, middle, middle, middle, middle, middle, middle, middle, middle,
-                middle, middle, middle, middle, middle, middle, middle, middle, middle, bottom);
-    }
-
-    private Binary1280(long l0, long l1, long l2, long l3, long l4,
-            long l5, long l6, long l7, long l8, long l9,
-            long l10, long l11, long l12, long l13, long l14,
-            long l15, long l16, long l17, long l18, long l19) {
+    private Binary640(long l0, long l1, long l2, long l3, long l4,
+            long l5, long l6, long l7, long l8, long l9) {
         this.l0 = l0;
         this.l1 = l1;
         this.l2 = l2;
@@ -71,36 +58,16 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
         this.l7 = l7;
         this.l8 = l8;
         this.l9 = l9;
-        this.l10 = l10;
-        this.l11 = l11;
-        this.l12 = l12;
-        this.l13 = l13;
-        this.l14 = l14;
-        this.l15 = l15;
-        this.l16 = l16;
-        this.l17 = l17;
-        this.l18 = l18;
-        this.l19 = l19;
     }
 
-    /** 按大端序恢复原始编码，保留 NaN 的符号、payload 和 signaling 位。 */
-    public static Binary1280 fromRawBits(long l0, long l1, long l2, long l3, long l4,
-            long l5, long l6, long l7, long l8, long l9,
-            long l10, long l11, long l12, long l13, long l14,
-            long l15, long l16, long l17, long l18, long l19) {
-        return new Binary1280(l0, l1, l2, l3, l4, l5, l6, l7, l8, l9,
-                l10, l11, l12, l13, l14, l15, l16, l17, l18, l19);
+    /** 按大端序恢复完整编码，保留 NaN 的符号、payload 和 signaling 位。 */
+    static Binary640 fromRawBits(long l0, long l1, long l2, long l3, long l4,
+            long l5, long l6, long l7, long l8, long l9) {
+        return new Binary640(l0, l1, l2, l3, l4, l5, l6, l7, l8, l9);
     }
 
-    private static Binary1280 fromLowWords(long[] words) {
-        return fromRawBits(words[19], words[18], words[17], words[16], words[15],
-                words[14], words[13], words[12], words[11], words[10],
-                words[9], words[8], words[7], words[6], words[5],
-                words[4], words[3], words[2], words[1], words[0]);
-    }
-
-    /** 返回一个原始编码分组，索引零为最高组，有效索引为零至十九。 */
-    public long getRawLong(int index) {
+    /** 返回一个原始编码分组，索引零为最高组，有效索引为零至九。 */
+    long getRawLong(int index) {
         return switch (index) {
             case 0 -> l0;
             case 1 -> l1;
@@ -112,38 +79,28 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
             case 7 -> l7;
             case 8 -> l8;
             case 9 -> l9;
-            case 10 -> l10;
-            case 11 -> l11;
-            case 12 -> l12;
-            case 13 -> l13;
-            case 14 -> l14;
-            case 15 -> l15;
-            case 16 -> l16;
-            case 17 -> l17;
-            case 18 -> l18;
-            case 19 -> l19;
             default -> throw new IndexOutOfBoundsException(index);
         };
     }
 
-    /** 只接受恰好 160 字节的大端序编码，不持有输入数组。 */
-    public static Binary1280 of(byte[] bytes) {
+    /** 只接受恰好 80 字节的大端序编码，不持有输入数组。 */
+    public static Binary640 of(byte[] bytes) {
         Objects.requireNonNull(bytes);
-        if (bytes.length != 160) {
-            throw new IllegalArgumentException("bytes must contain exactly 160 elements");
+        if (bytes.length != 80) {
+            throw new IllegalArgumentException("bytes must contain exactly 80 elements");
         }
-        long[] words = new long[WORDS];
+        long[] words = new long[10];
         for (int i = 0; i < bytes.length; i++) {
-            int group = WORDS - 1 - i / 8;
-            words[group] = (words[group] << 8) | (bytes[i] & 0xffL);
+            words[i / 8] = (words[i / 8] << 8) | (bytes[i] & 0xffL);
         }
-        return fromLowWords(words);
+        return fromRawBits(words[0], words[1], words[2], words[3], words[4],
+                words[5], words[6], words[7], words[8], words[9]);
     }
 
     @Override
     public byte[] toBytes() {
-        byte[] bytes = new byte[160];
-        for (int group = 0; group < WORDS; group++) {
+        byte[] bytes = new byte[80];
+        for (int group = 0; group < 10; group++) {
             long word = getRawLong(group);
             for (int i = 0; i < 8; i++) {
                 bytes[group * 8 + i] = (byte) (word >>> (56 - i * 8));
@@ -152,31 +109,31 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
         return bytes;
     }
 
-    public static Binary1280 of(long value) {
-        return Binary1280Rounding.roundDyadic(value < 0, new long[] {value < 0 ? -value : value}, 0);
+    public static Binary640 of(long value) {
+        return Binary640Rounding.roundDyadic(value < 0, new long[] {value < 0 ? -value : value}, 0);
     }
 
-    public static Binary1280 of(float value) {
+    public static Binary640 of(float value) {
         int bits = Float.floatToRawIntBits(value);
         return fromPrimitive(bits < 0, (bits >>> 23) & 255, bits & 0x7fffffL, 23, 127, 255);
     }
 
-    public static Binary1280 of(double value) {
+    public static Binary640 of(double value) {
         long bits = Double.doubleToRawLongBits(value);
         return fromPrimitive(bits < 0, (int) ((bits >>> 52) & 2047), bits & 0xfffffffffffffL, 52, 1023, 2047);
     }
 
-    private static Binary1280 fromPrimitive(boolean negative, int exponent, long fraction,
+    private static Binary640 fromPrimitive(boolean negative, int exponent, long fraction,
             int fractionBits, int bias, int infinityExponent) {
         if (exponent == infinityExponent) {
             return fraction == 0 ? infinity(negative) : NaN;
         }
         long magnitude = exponent == 0 ? fraction : fraction | (1L << fractionBits);
         long scale = (exponent == 0 ? 1L : exponent) - bias - fractionBits;
-        return Binary1280Rounding.roundDyadic(negative, new long[] {magnitude}, scale);
+        return Binary640Rounding.roundDyadic(negative, new long[] {magnitude}, scale);
     }
 
-    public static Binary1280 of(Int<?> value) {
+    public static Binary640 of(Int<?> value) {
         Objects.requireNonNull(value);
         boolean negative = value.isNegative();
         int length = value.bitLength();
@@ -184,11 +141,11 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
             return infinity(negative);
         }
         long upperLength = length + 1L;
-        // 上界可能比真实幅值多一位，保留 1255 位才能保证 sticky 严格低于 guard。
-        long dropped = Math.max(upperLength - (PRECISION + 3), 0);
+        // 上界可能比真实幅值多一位，保留 619 位才能保证 sticky 严格低于 guard。
+        long dropped = Math.max(upperLength - 619, 0);
         int groups = value.format().bitWidth() / 64;
         int needed = (int) ((upperLength + 63) / 64);
-        long[] window = new long[WORDS];
+        long[] window = new long[10];
         long carry = negative ? 1 : 0;
         boolean sticky = false;
         for (int i = 0; i < needed; i++) {
@@ -204,16 +161,16 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
                 if (offset < 0) {
                     sticky |= (word & ((1L << (int) -offset) - 1)) != 0;
                 }
-                Binary1280Rounding.insert(window, word, offset);
+                Binary640Rounding.insert(window, word, offset);
             }
         }
         if (sticky) {
             window[0] |= 1;
         }
-        return Binary1280Rounding.roundDyadic(negative, window, dropped);
+        return Binary640Rounding.roundDyadic(negative, window, dropped);
     }
 
-    public static Binary1280 of(Binary<?> value) {
+    public static Binary640 of(Binary<?> value) {
         Objects.requireNonNull(value);
         if (value.isNaN()) {
             return NaN;
@@ -225,7 +182,7 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
         if (value.isZero()) {
             return zero(negative);
         }
-        if (value instanceof Binary1280 same) {
+        if (value instanceof Binary640 same) {
             return same;
         }
         int precision = value.format().precision();
@@ -256,16 +213,16 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
         if (exponent < QMIN - 1L) {
             return zero(negative);
         }
-        long dropped = Math.max(length - (PRECISION + 2), 0);
-        long[] window = new long[WORDS];
+        long dropped = Math.max(length - 618, 0);
+        long[] window = new long[10];
         int last = groups - 1 - (int) (dropped / 64);
         long lastWord = top;
         for (int i = first - 1; i <= last; i++) {
             lastWord = i == first - 1 ? top : value.getSignificandLong(i);
-            Binary1280Rounding.insert(window, lastWord, (groups - 1L - i) * 64 - dropped);
+            Binary640Rounding.insert(window, lastWord, (groups - 1L - i) * 64 - dropped);
         }
         // 只在偶数侧中点读取低尾项，避免极大名义精度迫使无关分组参与转换。
-        long discarded = Math.max(exponent - FRACTION_BITS, QMIN) - scale - dropped;
+        long discarded = Math.max(exponent - 615, QMIN) - scale - dropped;
         if (dropped != 0 && UnsignedWords.bit(window, discarded - 1)
                 && !UnsignedWords.bit(window, discarded) && !UnsignedWords.anyLow(window, discarded - 1)) {
             int partial = (int) (dropped & 63);
@@ -277,15 +234,15 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
                 window[0] |= 1;
             }
         }
-        return Binary1280Rounding.roundDyadic(negative, window, scale + dropped);
+        return Binary640Rounding.roundDyadic(negative, window, scale + dropped);
     }
 
-    public static Binary1280 of(String value) {
-        return Binary1280Decimal.parse(value);
+    public static Binary640 of(String value) {
+        return Binary640Decimal.parse(value);
     }
 
     public static boolean isValid(String value) {
-        return Binary1280Decimal.isValid(value);
+        return Binary640Decimal.isValid(value);
     }
 
     @Override
@@ -294,12 +251,11 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
     }
 
     private int encodedExponent() {
-        return (int) ((l0 >>> TOP_FRACTION_BITS) & EXPONENT_MASK);
+        return (int) ((l0 >>> 39) & 0xffffff);
     }
 
     private boolean emptyFraction() {
-        return ((l0 & FRACTION_MASK) | l1 | l2 | l3 | l4 | l5 | l6 | l7 | l8 | l9
-                | l10 | l11 | l12 | l13 | l14 | l15 | l16 | l17 | l18 | l19) == 0;
+        return ((l0 & FRACTION_MASK) | l1 | l2 | l3 | l4 | l5 | l6 | l7 | l8 | l9) == 0;
     }
 
     @Override
@@ -309,17 +265,17 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
 
     @Override
     public boolean isNaN() {
-        return encodedExponent() == EXPONENT_MASK && !emptyFraction();
+        return encodedExponent() == 0xffffff && !emptyFraction();
     }
 
     @Override
     public boolean isInfinite() {
-        return encodedExponent() == EXPONENT_MASK && emptyFraction();
+        return encodedExponent() == 0xffffff && emptyFraction();
     }
 
     @Override
     public boolean isFinite() {
-        return encodedExponent() != EXPONENT_MASK;
+        return encodedExponent() != 0xffffff;
     }
 
     @Override
@@ -347,7 +303,7 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
     public long scaleExponent() {
         requireFinite();
         int encoded = encodedExponent();
-        return encoded == 0 ? QMIN : encoded - (long) BIAS - FRACTION_BITS;
+        return encoded == 0 ? QMIN : encoded - (long) BIAS - 615;
     }
 
     @Override
@@ -357,105 +313,80 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
     }
 
     @Override
-    public Binary1280 add(Binary1280 other) {
+    public Binary640 add(Binary640 other) {
         Objects.requireNonNull(other);
-        return Binary1280Arithmetic.add(this, other, false);
+        return Binary640Arithmetic.add(this, other, false);
     }
 
     @Override
-    public Binary1280 subtract(Binary1280 other) {
+    public Binary640 subtract(Binary640 other) {
         Objects.requireNonNull(other);
-        return Binary1280Arithmetic.add(this, other, true);
+        return Binary640Arithmetic.add(this, other, true);
     }
 
     @Override
-    public Binary1280 multiply(Binary1280 other) {
+    public Binary640 multiply(Binary640 other) {
         Objects.requireNonNull(other);
-        return Binary1280Arithmetic.multiply(this, other);
+        return Binary640Arithmetic.multiply(this, other);
     }
 
     @Override
-    public Binary1280 divide(Binary1280 other) {
+    public Binary640 divide(Binary640 other) {
         Objects.requireNonNull(other);
-        return Binary1280Arithmetic.divide(this, other);
+        return Binary640Arithmetic.divide(this, other);
     }
 
     @Override
-    public Binary1280 remainder(Binary1280 other) {
+    public Binary640 remainder(Binary640 other) {
         Objects.requireNonNull(other);
-        return Binary1280Arithmetic.remainder(this, other);
+        return Binary640Arithmetic.remainder(this, other, false);
     }
 
     /** @see BinaryMath#ieeeRemainder(BinaryMath, BinaryMath) */
-    public static Binary1280 ieeeRemainder(Binary1280 dividend, Binary1280 divisor) {
+    public static Binary640 ieeeRemainder(Binary640 dividend, Binary640 divisor) {
         Objects.requireNonNull(dividend);
         Objects.requireNonNull(divisor);
-        return Binary1280Arithmetic.ieeeRemainder(dividend, divisor);
+        return Binary640Arithmetic.remainder(dividend, divisor, true);
     }
 
-    /** @see BinaryMath#fma(BinaryMath, BinaryMath, BinaryMath) */
-    public static Binary1280 fma(Binary1280 multiplicand, Binary1280 multiplier, Binary1280 addend) {
-        Objects.requireNonNull(multiplicand);
-        Objects.requireNonNull(multiplier);
-        Objects.requireNonNull(addend);
-        return Binary1280Arithmetic.fma(multiplicand, multiplier, addend);
-    }
-
-    /** @see BinaryMath#sqrt(BinaryMath) */
-    public static Binary1280 sqrt(Binary1280 value) {
-        return Binary1280Arithmetic.sqrt(Objects.requireNonNull(value));
-    }
-
-    /** @see BinaryMath#scalb(BinaryMath, long) */
-    public static Binary1280 scalb(Binary1280 value, long scaleFactor) {
-        Objects.requireNonNull(value);
-        if (value.isNaN()) {
-            return NaN;
-        }
-        if (value.isZero() || value.isInfinite()) {
-            return value;
-        }
-        long[] magnitude = magnitude(value);
-        long scale = value.scaleExponent();
-        long exponent = scale + UnsignedWords.bitLength(magnitude) - 1;
-        // 先比较允许的增量，避免 scaleFactor 在相加时回绕。
-        if (scaleFactor > EMAX - exponent) {
-            return infinity(value.signBit());
-        }
-        if (scaleFactor < QMIN - 1L - exponent) {
-            return zero(value.signBit());
-        }
-        return Binary1280Rounding.roundDyadic(value.signBit(), magnitude, scale + scaleFactor);
+    @Override
+    public Binary640 negate() {
+        return isNaN() ? NaN : new Binary640(l0 ^ Long.MIN_VALUE, l1, l2, l3, l4, l5, l6, l7, l8, l9);
     }
 
     /** @see BinaryMath#abs(BinaryMath) */
-    public static Binary1280 abs(Binary1280 value) {
+    public static Binary640 abs(Binary640 value) {
         Objects.requireNonNull(value);
         return value.isNaN() ? NaN : value.signBit() ? value.negate() : value;
     }
 
-    @Override
-    public Binary1280 negate() {
-        if (isNaN()) {
-            return NaN;
-        }
-        return new Binary1280(l0 ^ Long.MIN_VALUE, l1, l2, l3, l4, l5, l6, l7, l8, l9,
-                l10, l11, l12, l13, l14, l15, l16, l17, l18, l19);
+    /** @see BinaryMath#fma(BinaryMath, BinaryMath, BinaryMath) */
+    public static Binary640 fma(Binary640 multiplicand, Binary640 multiplier, Binary640 addend) {
+        Objects.requireNonNull(multiplicand);
+        Objects.requireNonNull(multiplier);
+        Objects.requireNonNull(addend);
+        return Binary640Arithmetic.fma(multiplicand, multiplier, addend);
+    }
+
+    /** @see BinaryMath#sqrt(BinaryMath) */
+    public static Binary640 sqrt(Binary640 value) {
+        Objects.requireNonNull(value);
+        return Binary640Arithmetic.sqrt(value);
+    }
+
+    /** @see BinaryMath#scalb(BinaryMath, long) */
+    public static Binary640 scalb(Binary640 value, long scaleFactor) {
+        Objects.requireNonNull(value);
+        return Binary640Arithmetic.scalb(value, scaleFactor);
     }
 
     @Override
-    public Binary1280 ulp() {
-        if (isNaN()) {
-            return NaN;
-        }
-        if (isInfinite()) {
-            return POSITIVE_INFINITY;
-        }
-        return Binary1280Rounding.roundDyadic(false, new long[] {1}, scaleExponent());
+    public Binary640 ulp() {
+        return Binary640Arithmetic.ulp(this);
     }
 
     @Override
-    public Binary1280 nextUp() {
+    public Binary640 nextUp() {
         if (isNaN()) {
             return NaN;
         }
@@ -466,7 +397,7 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
     }
 
     @Override
-    public Binary1280 nextDown() {
+    public Binary640 nextDown() {
         if (isNaN()) {
             return NaN;
         }
@@ -476,26 +407,26 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
         return equals(NEGATIVE_INFINITY) ? this : step(signBit());
     }
 
-    private Binary1280 step(boolean increment) {
-        long[] words = new long[WORDS];
+    private Binary640 step(boolean increment) {
+        long[] words = new long[10];
         long delta = increment ? 1 : -1;
         long carry = delta;
-        for (int i = 0; i < WORDS; i++) {
-            long word = getRawLong(WORDS - 1 - i);
+        for (int i = 0; i < 10; i++) {
+            long word = getRawLong(9 - i);
             words[i] = word + carry;
             carry = carry != 0 && words[i] == (increment ? 0 : -1) ? delta : 0;
         }
-        return fromLowWords(words);
+        return raw(words);
     }
 
-    private int compareOrdered(Binary1280 other) {
+    private int compareOrdered(Binary640 other) {
         if (isZero() && other.isZero()) {
             return 0;
         }
         if (signBit() != other.signBit()) {
             return signBit() ? -1 : 1;
         }
-        for (int i = 0; i < WORDS; i++) {
+        for (int i = 0; i < 10; i++) {
             int comparison = Long.compareUnsigned(getRawLong(i), other.getRawLong(i));
             if (comparison != 0) {
                 return signBit() ? -comparison : comparison;
@@ -505,7 +436,7 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
     }
 
     @Override
-    public Comparison compareNumerically(Binary1280 other) {
+    public Comparison compareNumerically(Binary640 other) {
         Objects.requireNonNull(other);
         if (isNaN() || other.isNaN()) {
             return Comparison.UNORDERED;
@@ -515,7 +446,7 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
     }
 
     @Override
-    public int compareTo(Binary1280 other) {
+    public int compareTo(Binary640 other) {
         Objects.requireNonNull(other);
         if (isNaN() || other.isNaN()) {
             return Boolean.compare(isNaN(), other.isNaN());
@@ -528,7 +459,7 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
 
     @Override
     public boolean equals(Object obj) {
-        if (!(obj instanceof Binary1280 other)) {
+        if (!(obj instanceof Binary640 other)) {
             return false;
         }
         return isNaN() && other.isNaN() || compareOrdered(other) == 0 && signBit() == other.signBit();
@@ -540,7 +471,7 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
             return Long.hashCode(NAN_TOP);
         }
         int hash = Long.hashCode(l0);
-        for (int i = 1; i < WORDS; i++) {
+        for (int i = 1; i < 10; i++) {
             hash = 31 * hash + Long.hashCode(getRawLong(i));
         }
         return hash;
@@ -566,8 +497,8 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
         }
         long[] magnitude = magnitude(this);
         int quantum = Math.max(exponent - fractionBits, minimumScale);
-        int discarded = quantum - exponent + FRACTION_BITS;
-        long rounded = Binary1280Rounding.shiftedWord(magnitude, 0, discarded);
+        int discarded = quantum - exponent + 615;
+        long rounded = Binary640Rounding.shiftedWord(magnitude, 0, discarded);
         if (UnsignedWords.bit(magnitude, discarded - 1)
                 && ((rounded & 1) != 0 || UnsignedWords.anyLow(magnitude, discarded - 1))) {
             rounded++;
@@ -609,7 +540,7 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
         if (exponent < 0) {
             return 0;
         }
-        long result = Binary1280Rounding.shiftedWord(magnitude(this), 0, FRACTION_BITS - exponent);
+        long result = Binary640Rounding.shiftedWord(magnitude(this), 0, 615 - exponent);
         return signBit() ? -result : result;
     }
 
@@ -625,21 +556,21 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
 
     @Override
     public String toString() {
-        return Binary1280Decimal.format(this, false);
+        return Binary640Decimal.format(this, false);
     }
 
     @Override
     public String toString(int fractionDigits) {
-        return Binary1280Decimal.format(this, false, fractionDigits);
+        return Binary640Decimal.format(this, false, fractionDigits);
     }
 
     @Override
     public String toScientificString() {
-        return Binary1280Decimal.format(this, true);
+        return Binary640Decimal.format(this, true);
     }
 
     @Override
     public String toScientificString(int fractionDigits) {
-        return Binary1280Decimal.format(this, true, fractionDigits);
+        return Binary640Decimal.format(this, true, fractionDigits);
     }
 }

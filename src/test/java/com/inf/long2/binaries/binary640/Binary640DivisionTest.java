@@ -9,7 +9,6 @@ import java.math.BigInteger;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
 
-import com.inf.long2.binaries.Binary640;
 
 class Binary640DivisionTest {
     private static final long QMIN = -8389221L;

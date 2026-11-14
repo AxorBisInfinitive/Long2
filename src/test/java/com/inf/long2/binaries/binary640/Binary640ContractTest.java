@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test;
 
 import com.inf.long2.Binary;
 import com.inf.long2.Int;
-import com.inf.long2.binaries.Binary640;
 
 class Binary640ContractTest {
     @Test

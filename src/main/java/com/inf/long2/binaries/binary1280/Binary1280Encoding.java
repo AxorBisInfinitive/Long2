@@ -1,24 +1,23 @@
 package com.inf.long2.binaries.binary1280;
 
-import com.inf.long2.binaries.Binary1280;
 
-public final class Binary1280Encoding {
-    public static final int WORDS = 20;
-    public static final int PRECISION = 1252;
-    public static final int FRACTION_BITS = PRECISION - 1;
-    public static final int TOP_FRACTION_BITS = 35;
-    public static final int EXPONENT_MASK = 0x0fff_ffff;
-    public static final int BIAS = 134217727;
-    public static final int EMIN = 1 - BIAS;
-    public static final int EMAX = BIAS;
-    public static final int QMIN = EMIN - FRACTION_BITS;
-    public static final long HIDDEN_BIT = 1L << TOP_FRACTION_BITS;
-    public static final long FRACTION_MASK = HIDDEN_BIT - 1;
+final class Binary1280Encoding {
+    static final int WORDS = 20;
+    static final int PRECISION = 1252;
+    static final int FRACTION_BITS = PRECISION - 1;
+    static final int TOP_FRACTION_BITS = 35;
+    static final int EXPONENT_MASK = 0x0fff_ffff;
+    static final int BIAS = 134217727;
+    static final int EMIN = 1 - BIAS;
+    static final int EMAX = BIAS;
+    static final int QMIN = EMIN - FRACTION_BITS;
+    static final long HIDDEN_BIT = 1L << TOP_FRACTION_BITS;
+    static final long FRACTION_MASK = HIDDEN_BIT - 1;
 
     private Binary1280Encoding() {
     }
 
-    public static long[] magnitude(Binary1280 value) {
+    static long[] magnitude(Binary1280 value) {
         long[] words = new long[WORDS];
         words[WORDS - 1] = value.getSignificandLong(0);
         for (int i = 0; i < WORDS - 1; i++) {
@@ -27,11 +26,11 @@ public final class Binary1280Encoding {
         return words;
     }
 
-    public static Binary1280 zero(boolean negative) {
+    static Binary1280 zero(boolean negative) {
         return negative ? Binary1280.NEGATIVE_ZERO : Binary1280.ZERO;
     }
 
-    public static Binary1280 infinity(boolean negative) {
+    static Binary1280 infinity(boolean negative) {
         return negative ? Binary1280.NEGATIVE_INFINITY : Binary1280.POSITIVE_INFINITY;
     }
 

@@ -5,7 +5,6 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 
-import com.inf.long2.binaries.Binary640;
 
 /** 与独立数值工具交换原始编码，不经 double 或十进制文本中转操作数。 */
 public final class Binary640MpfrProbe {

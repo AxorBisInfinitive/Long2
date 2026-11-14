@@ -172,8 +172,8 @@ class IntContractTest extends ProcessorTestSupport {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"Object", "com.inf.long2.Binary", "com.inf.long2.Binary<com.inf.long2.binaries.Binary256>",
-            "com.inf.long2.binaries.Binary256"})
+    @ValueSource(strings = {"Object", "com.inf.long2.Binary", "com.inf.long2.Binary<com.inf.long2.binaries.binary256.Binary256>",
+            "com.inf.long2.binaries.binary256.Binary256"})
     void requiresTheCompleteBinarySourceInterface(String sourceType) throws IOException {
         Compilation result = compile(fixture(DECLARATIONS.replace("of(com.inf.long2.Binary<?> value)",
                 "of(" + sourceType + " value)"), ""));

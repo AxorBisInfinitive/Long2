@@ -1,13 +1,12 @@
 package com.inf.long2.binaries.binary256;
 
-import com.inf.long2.binaries.Binary256;
 import com.inf.long2.binaries.internal.UnsignedWords;
 
-import static com.inf.long2.binaries.Binary256.FORMAT;
-import static com.inf.long2.binaries.Binary256.NaN;
-import static com.inf.long2.binaries.Binary256.ONE;
-import static com.inf.long2.binaries.Binary256.POSITIVE_INFINITY;
-import static com.inf.long2.binaries.Binary256.ZERO;
+import static com.inf.long2.binaries.binary256.Binary256.FORMAT;
+import static com.inf.long2.binaries.binary256.Binary256.NaN;
+import static com.inf.long2.binaries.binary256.Binary256.ONE;
+import static com.inf.long2.binaries.binary256.Binary256.POSITIVE_INFINITY;
+import static com.inf.long2.binaries.binary256.Binary256.ZERO;
 import static com.inf.long2.binaries.binary256.Binary256Encoding.BIAS;
 import static com.inf.long2.binaries.binary256.Binary256Encoding.FRACTION_MASK;
 import static com.inf.long2.binaries.binary256.Binary256Encoding.HIDDEN_BIT;
@@ -27,13 +26,13 @@ import static com.inf.long2.binaries.binary256.Binary256Rounding.roundProductWit
 import static com.inf.long2.binaries.binary256.Binary256Rounding.shiftedWord;
 
 /** Binary256 算术。整数幅值低组在前，原地操作只修改本次调用独占的数组。 */
-public final class Binary256Arithmetic {
+final class Binary256Arithmetic {
     private static final int FMA_ALIGNMENT_WORDS = 12;
 
     private Binary256Arithmetic() {
     }
 
-    public static Binary256 add(Binary256 value, Binary256 other, boolean subtract) {
+    static Binary256 add(Binary256 value, Binary256 other, boolean subtract) {
         if (value.isNaN() || other.isNaN()) {
             return NaN;
         }
@@ -88,7 +87,7 @@ public final class Binary256Arithmetic {
         return fromDyadic(comparison > 0 ? negative : otherNegative, result, scale);
     }
 
-    public static Binary256 multiply(Binary256 value, Binary256 other) {
+    static Binary256 multiply(Binary256 value, Binary256 other) {
         if (value.isNaN() || other.isNaN() || (value.isZero() && other.isInfinite()) || (value.isInfinite() && other.isZero())) {
             return NaN;
         }
@@ -236,7 +235,7 @@ public final class Binary256Arithmetic {
         };
     }
 
-    public static Binary256 fma(Binary256 value, Binary256 multiplier, Binary256 addend) {
+    static Binary256 fma(Binary256 value, Binary256 multiplier, Binary256 addend) {
         if (value.isNaN() || multiplier.isNaN() || addend.isNaN()
                 || (value.isZero() && multiplier.isInfinite()) || (value.isInfinite() && multiplier.isZero())) {
             return NaN;
@@ -402,7 +401,7 @@ public final class Binary256Arithmetic {
                 : w2 != 0 ? 128 + Long.numberOfTrailingZeros(w2) : 192 + Long.numberOfTrailingZeros(w3);
     }
 
-    public static Binary256 divide(Binary256 value, Binary256 other) {
+    static Binary256 divide(Binary256 value, Binary256 other) {
         if (value.isNaN() || other.isNaN() || (value.isZero() && other.isZero()) || (value.isInfinite() && other.isInfinite())) {
             return NaN;
         }
@@ -443,7 +442,7 @@ public final class Binary256Arithmetic {
                 half > 0 || (half == 0 && UnsignedWords.bit(result, 0)));
     }
 
-    public static Binary256 remainder(Binary256 value, Binary256 other, boolean nearest) {
+    static Binary256 remainder(Binary256 value, Binary256 other, boolean nearest) {
         if (value.isNaN() || other.isNaN() || value.isInfinite() || other.isZero()) {
             return NaN;
         }
@@ -559,7 +558,7 @@ public final class Binary256Arithmetic {
         return QMIN + length - 1;
     }
 
-    public static Binary256 sqrt(Binary256 value) {
+    static Binary256 sqrt(Binary256 value) {
         if (value.isNaN() || (value.signBit() && !value.isZero())) {
             return NaN;
         }
@@ -592,7 +591,7 @@ public final class Binary256Arithmetic {
         return packRounded(false, workspace[0], workspace[1], workspace[2], workspace[3], quantum, comparison > 0);
     }
 
-    public static Binary256 scalb(Binary256 value, long scaleFactor) {
+    static Binary256 scalb(Binary256 value, long scaleFactor) {
         if (value.isNaN()) {
             return NaN;
         }
@@ -602,7 +601,7 @@ public final class Binary256Arithmetic {
         return scalbFinite(value, scaleFactor, value.signBit());
     }
 
-    public static Binary256 ulp(Binary256 value) {
+    static Binary256 ulp(Binary256 value) {
         if (value.isNaN()) {
             return NaN;
         }

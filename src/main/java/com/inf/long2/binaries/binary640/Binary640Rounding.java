@@ -2,7 +2,6 @@ package com.inf.long2.binaries.binary640;
 
 import java.util.Arrays;
 
-import com.inf.long2.binaries.Binary640;
 import com.inf.long2.binaries.internal.UnsignedWords;
 
 import static com.inf.long2.binaries.binary640.Binary640Encoding.BIAS;
@@ -14,12 +13,12 @@ import static com.inf.long2.binaries.binary640.Binary640Encoding.raw;
 import static com.inf.long2.binaries.binary640.Binary640Encoding.zero;
 
 /** 将低组在前的整数幅值按最近偶数规则舍入并编码为 Binary640。 */
-public final class Binary640Rounding {
+final class Binary640Rounding {
     private Binary640Rounding() {
     }
 
     /** 将一个源分组按位偏移并入独占窗口，窗口外的位丢弃。 */
-    public static void insert(long[] target, long word, long offset) {
+    static void insert(long[] target, long word, long offset) {
         if (offset < 0) {
             if (offset > -64) {
                 target[0] |= word >>> (int) -offset;
@@ -37,7 +36,7 @@ public final class Binary640Rounding {
     }
 
     /** distance 为正时右移，为负时左移，范围外的源分组补零。 */
-    public static long shiftedWord(long[] magnitude, int index, int distance) {
+    static long shiftedWord(long[] magnitude, int index, int distance) {
         int group = index + (distance >> 6), bits = distance & 63;
         long low = group < 0 ? 0 : UnsignedWords.word(magnitude, group);
         if (bits == 0) {
@@ -47,7 +46,7 @@ public final class Binary640Rounding {
         return (low >>> bits) | (high << (64 - bits));
     }
 
-    public static Binary640 roundDyadic(boolean negative, long[] magnitude, long scale) {
+    static Binary640 roundDyadic(boolean negative, long[] magnitude, long scale) {
         int length = UnsignedWords.bitLength(magnitude);
         if (length == 0) {
             return zero(negative);

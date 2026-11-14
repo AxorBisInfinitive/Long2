@@ -5,7 +5,6 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 
-import com.inf.long2.binaries.Binary256;
 
 /** 为外部 MPFR 差分测试提供逐行原始编码协议，避免通过 double 交换数值。 */
 public final class Binary256MpfrProbe {

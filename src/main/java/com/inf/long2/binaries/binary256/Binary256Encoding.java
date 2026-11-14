@@ -1,20 +1,19 @@
 package com.inf.long2.binaries.binary256;
 
-import com.inf.long2.binaries.Binary256;
 import com.inf.long2.binaries.internal.UnsignedWords;
 
 /** Binary256 的原始编码与整数幅值操作，供值类型和实现类共用。 */
-public final class Binary256Encoding {
-    public static final int BIAS = 262143;
-    public static final int QMIN = -262378;
-    public static final long FRACTION_MASK = 0x0000_0fff_ffff_ffffL;
-    public static final long HIDDEN_BIT = 0x0000_1000_0000_0000L;
+final class Binary256Encoding {
+    static final int BIAS = 262143;
+    static final int QMIN = -262378;
+    static final long FRACTION_MASK = 0x0000_0fff_ffff_ffffL;
+    static final long HIDDEN_BIT = 0x0000_1000_0000_0000L;
 
     private Binary256Encoding() {
     }
 
     /** 原始无符号 long 幅值的精确扩展，调用方保证非零值落在 Binary256 的正常范围内。 */
-    public static Binary256 fromUnsignedLong(boolean negative, long magnitude, long scale) {
+    static Binary256 fromUnsignedLong(boolean negative, long magnitude, long scale) {
         if (magnitude == 0) {
             return zero(negative);
         }
@@ -25,11 +24,11 @@ public final class Binary256Encoding {
         return Binary256.fromRawBits((negative ? Long.MIN_VALUE : 0) | (encoded << 44) | (top & FRACTION_MASK), next, 0, 0);
     }
 
-    public static int encodedExponent(Binary256 value) {
+    static int encodedExponent(Binary256 value) {
         return (int) ((value.getRawLong(0) >>> 44) & 0x7ffff);
     }
 
-    public static boolean emptyFraction(Binary256 value) {
+    static boolean emptyFraction(Binary256 value) {
         return ((value.getRawLong(0) & FRACTION_MASK) | value.getRawLong(1) | value.getRawLong(2) | value.getRawLong(3)) == 0;
     }
 
@@ -38,7 +37,7 @@ public final class Binary256Encoding {
     }
 
     /** 内部按低位分组读取有限幅值，超出四个分组的部分补零。 */
-    public static long magnitudeWord(Binary256 value, int index) {
+    static long magnitudeWord(Binary256 value, int index) {
         return switch (index) {
             case 0 -> value.getRawLong(3);
             case 1 -> value.getRawLong(2);
@@ -48,11 +47,11 @@ public final class Binary256Encoding {
         };
     }
 
-    public static Binary256 zero(boolean negative) {
+    static Binary256 zero(boolean negative) {
         return negative ? Binary256.NEGATIVE_ZERO : Binary256.ZERO;
     }
 
-    public static Binary256 infinity(boolean negative) {
+    static Binary256 infinity(boolean negative) {
         return negative ? Binary256.NEGATIVE_INFINITY : Binary256.POSITIVE_INFINITY;
     }
 }

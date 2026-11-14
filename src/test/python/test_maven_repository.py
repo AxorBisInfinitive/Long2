@@ -92,8 +92,14 @@ class MavenRepositoryTest(unittest.TestCase):
         first = PUBLISHER.source_archive("HEAD")
         self.assertEqual(first, PUBLISHER.source_archive("HEAD"))
         with zipfile.ZipFile(io.BytesIO(first)) as archive:
-            source_path = "com/inf/long2/binaries/Binary256.java"
-            self.assertEqual(PUBLISHER.command("git", "show", "HEAD:src/main/java/" + source_path), archive.read(source_path))
+            source_root = "src/main/java/"
+            paths = PUBLISHER.command("git", "ls-tree", "-r", "--name-only", "HEAD", "--", source_root)
+            sources = {path.removeprefix(source_root): path
+                       for path in paths.decode().splitlines() if path.endswith(".java")}
+            self.assertTrue(sources)
+            self.assertEqual(set(sources), {name for name in archive.namelist() if name.endswith(".java")})
+            for name, path in sources.items():
+                self.assertEqual(PUBLISHER.command("git", "show", f"HEAD:{path}"), archive.read(name))
             self.assertIn("META-INF/LICENSE", archive.namelist())
             self.assertFalse(any(name.endswith(".class") for name in archive.namelist()))
             self.assertTrue(all(info.compress_type == zipfile.ZIP_STORED for info in archive.infolist()))

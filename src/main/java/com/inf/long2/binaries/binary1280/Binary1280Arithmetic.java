@@ -2,17 +2,16 @@ package com.inf.long2.binaries.binary1280;
 
 import java.util.Arrays;
 
-import com.inf.long2.binaries.Binary1280;
 import com.inf.long2.binaries.internal.UnsignedWords;
 
 import static com.inf.long2.binaries.binary1280.Binary1280Encoding.*;
 import static com.inf.long2.binaries.binary1280.Binary1280Rounding.*;
 
-public final class Binary1280Arithmetic {
+final class Binary1280Arithmetic {
     private Binary1280Arithmetic() {
     }
 
-    public static Binary1280 add(Binary1280 a, Binary1280 b, boolean subtract) {
+    static Binary1280 add(Binary1280 a, Binary1280 b, boolean subtract) {
         if (a.isNaN() || b.isNaN()) {
             return Binary1280.NaN;
         }
@@ -81,7 +80,7 @@ public final class Binary1280Arithmetic {
                 : UnsignedWords.compareShifted(a, b, bshift - ashift);
     }
 
-    public static Binary1280 multiply(Binary1280 a, Binary1280 b) {
+    static Binary1280 multiply(Binary1280 a, Binary1280 b) {
         if (invalidProduct(a, b)) {
             return Binary1280.NaN;
         }
@@ -116,7 +115,7 @@ public final class Binary1280Arithmetic {
         return new Product(UnsignedWords.multiply(am, bm), scale);
     }
 
-    public static Binary1280 fma(Binary1280 a, Binary1280 b, Binary1280 c) {
+    static Binary1280 fma(Binary1280 a, Binary1280 b, Binary1280 c) {
         if (c.isNaN() || invalidProduct(a, b)) {
             return Binary1280.NaN;
         }
@@ -151,7 +150,7 @@ public final class Binary1280Arithmetic {
         return sum(product.magnitude(), product.scale(), pe, negative, cm, cq, ce, c.signBit());
     }
 
-    public static Binary1280 divide(Binary1280 a, Binary1280 b) {
+    static Binary1280 divide(Binary1280 a, Binary1280 b) {
         if (a.isNaN() || b.isNaN() || a.isZero() && b.isZero() || a.isInfinite() && b.isInfinite()) {
             return Binary1280.NaN;
         }
@@ -171,11 +170,11 @@ public final class Binary1280Arithmetic {
                 : roundRational(negative, am, bm, scale);
     }
 
-    public static Binary1280 remainder(Binary1280 a, Binary1280 b) {
+    static Binary1280 remainder(Binary1280 a, Binary1280 b) {
         return remainder(a, b, false);
     }
 
-    public static Binary1280 ieeeRemainder(Binary1280 a, Binary1280 b) {
+    static Binary1280 ieeeRemainder(Binary1280 a, Binary1280 b) {
         return remainder(a, b, true);
     }
 
@@ -236,7 +235,7 @@ public final class Binary1280Arithmetic {
                 ae + 1, be) <= 0;
     }
 
-    public static Binary1280 sqrt(Binary1280 value) {
+    static Binary1280 sqrt(Binary1280 value) {
         if (value.isNaN() || value.signBit() && !value.isZero()) {
             return Binary1280.NaN;
         }

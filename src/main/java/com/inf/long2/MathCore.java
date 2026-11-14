@@ -2,9 +2,9 @@ package com.inf.long2;
 
 import java.util.Objects;
 
-import com.inf.long2.binaries.Binary1280;
-import com.inf.long2.binaries.Binary256;
-import com.inf.long2.binaries.Binary640;
+import com.inf.long2.binaries.binary1280.Binary1280;
+import com.inf.long2.binaries.binary256.Binary256;
+import com.inf.long2.binaries.binary640.Binary640;
 
 /**
  * 转发 {@link BinaryMath} 的数学函数。具体类型重载保留结果类型，

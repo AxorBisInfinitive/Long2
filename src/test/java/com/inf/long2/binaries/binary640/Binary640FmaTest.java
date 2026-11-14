@@ -8,7 +8,6 @@ import java.math.BigInteger;
 
 import org.junit.jupiter.api.Test;
 
-import com.inf.long2.binaries.Binary640;
 
 class Binary640FmaTest {
     @Test

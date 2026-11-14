@@ -10,7 +10,6 @@ import java.math.RoundingMode;
 
 import org.junit.jupiter.api.Test;
 
-import com.inf.long2.binaries.Binary640;
 
 /** 百万位指数的精确文本检查，使用显式测试类名执行。 */
 class Binary640ExtremeDecimalChecks {

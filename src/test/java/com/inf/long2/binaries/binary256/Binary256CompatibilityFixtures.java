@@ -9,7 +9,6 @@ import java.util.function.IntConsumer;
 
 import com.inf.long2.Binary;
 import com.inf.long2.Int;
-import com.inf.long2.binaries.Binary256;
 import com.inf.long2.binaries.binary256.baseline.Binary256Baseline;
 
 /** 从原始位生成输入，不通过待验证的算术或转换路径生成用例。 */

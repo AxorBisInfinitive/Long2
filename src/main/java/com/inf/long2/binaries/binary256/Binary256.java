@@ -1,12 +1,10 @@
-package com.inf.long2.binaries;
+package com.inf.long2.binaries.binary256;
 
 import java.util.Objects;
 
 import com.inf.long2.Binary;
 import com.inf.long2.BinaryMath;
 import com.inf.long2.Int;
-import com.inf.long2.binaries.binary256.Binary256Arithmetic;
-import com.inf.long2.binaries.binary256.Binary256Decimal;
 import com.inf.long2.binaries.internal.UnsignedWords;
 import com.inf.long2.ints.Int256;
 
@@ -110,7 +108,7 @@ public final class Binary256 implements Binary<Binary256>, BinaryMath {
     }
 
     /** 按大端序保存完整原始编码，包括 NaN 的符号、payload 和 signaling 位，不执行数值转换。 */
-    public static Binary256 fromRawBits(long l0, long l1, long l2, long l3) {
+    static Binary256 fromRawBits(long l0, long l1, long l2, long l3) {
         return new Binary256(l0, l1, l2, l3);
     }
 
@@ -145,7 +143,7 @@ public final class Binary256 implements Binary<Binary256>, BinaryMath {
      *
      * @throws IndexOutOfBoundsException 索引小于 0 或大于 3
      */
-    public long getRawLong(int index) {
+    long getRawLong(int index) {
         return switch (index) {
             case 0 -> l0;
             case 1 -> l1;

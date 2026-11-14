@@ -5,9 +5,8 @@ import java.math.BigInteger;
 
 import org.junit.jupiter.api.Test;
 
-import com.inf.long2.binaries.Binary1280;
 
-import static com.inf.long2.binaries.Binary1280.*;
+import static com.inf.long2.binaries.binary1280.Binary1280.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** 极端指数和长输出单独运行。 */

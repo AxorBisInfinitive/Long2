@@ -14,7 +14,6 @@ import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 
-import com.inf.long2.binaries.Binary256;
 
 class Binary256FixedStringsTest {
     /** 从原始编码独立重建精确值，不经生产代码的十进制转换。 */

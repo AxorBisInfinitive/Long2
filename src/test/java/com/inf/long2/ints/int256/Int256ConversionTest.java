@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import com.inf.long2.Binary;
 import com.inf.long2.Int;
-import com.inf.long2.binaries.Binary256;
+import com.inf.long2.binaries.binary256.Binary256;
 import com.inf.long2.ints.Int256;
 
 class Int256ConversionTest {
@@ -113,8 +113,10 @@ class Int256ConversionTest {
 
     @Test
     void convertsSpecialFloatingValuesAndRejectsNullSources() {
+        byte[] nanBits = Binary256.NEGATIVE_INFINITY.toBytes();
+        nanBits[nanBits.length - 1] = 1;
         for (Binary<?> zero : List.of(Binary256.ZERO, Binary256.NEGATIVE_ZERO, Binary256.NaN,
-                Binary256.fromRawBits(0xffff_f000_0000_0000L, 0, 0, 1))) {
+                Binary256.of(nanBits))) {
             assertEquals(Int256.ZERO, Int256.of(zero));
         }
         assertEquals(Int256.MAX_VALUE, Int256.of((Binary<?>) Binary256.POSITIVE_INFINITY));
@@ -148,8 +150,11 @@ class Int256ConversionTest {
                 BigInteger encoded = fraction.or(BigInteger.valueOf(exponent + 262143L).shiftLeft(236));
                 for (boolean negative : new boolean[] {false, true}) {
                     BigInteger bits = negative ? encoded.setBit(255) : encoded;
-                    Binary256 concrete = Binary256.fromRawBits(bits.shiftRight(192).longValue(),
-                            bits.shiftRight(128).longValue(), bits.shiftRight(64).longValue(), bits.longValue());
+                    byte[] bytes = new byte[32];
+                    byte[] encodedBytes = bits.toByteArray();
+                    int length = Math.min(bytes.length, encodedBytes.length);
+                    System.arraycopy(encodedBytes, encodedBytes.length - length, bytes, bytes.length - length, length);
+                    Binary256 concrete = Binary256.of(bytes);
                     Binary<?> generic = binary(Binary256.FORMAT, negative, 237, scale,
                             index -> magnitude.shiftRight((3 - index) * 64).longValue());
                     BigInteger expected = truncated(magnitude, (int) scale, negative);

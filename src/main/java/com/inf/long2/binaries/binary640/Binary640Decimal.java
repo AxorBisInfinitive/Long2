@@ -3,13 +3,12 @@ package com.inf.long2.binaries.binary640;
 import java.util.Arrays;
 import java.util.Objects;
 
-import com.inf.long2.binaries.Binary640;
 import com.inf.long2.binaries.internal.UnsignedWords;
 
 import static com.inf.long2.binaries.binary640.Binary640Encoding.magnitude;
 
 /** 精确十进制转换；幅值低组在前，不经过其他浮点格式。 */
-public final class Binary640Decimal {
+final class Binary640Decimal {
     private static final long EXPONENT_LIMIT = Long.MAX_VALUE / 4;
 
     private Binary640Decimal() {
@@ -24,7 +23,7 @@ public final class Binary640Decimal {
             int first, int last, long scale) {
     }
 
-    public static boolean isValid(String text) {
+    static boolean isValid(String text) {
         return scan(text) != null;
     }
 
@@ -98,7 +97,7 @@ public final class Binary640Decimal {
         return new ScannedDecimal(TextKind.FINITE, negative, start, end, first, last, scale);
     }
 
-    public static Binary640 parse(String text) {
+    static Binary640 parse(String text) {
         Objects.requireNonNull(text);
         ScannedDecimal scanned = scan(text);
         if (scanned == null) {
@@ -160,7 +159,7 @@ public final class Binary640Decimal {
         return new NumberFormatException("Invalid decimal value: " + text);
     }
 
-    public static String format(Binary640 value, boolean scientific) {
+    static String format(Binary640 value, boolean scientific) {
         if (value.isNaN()) {
             return "NaN";
         }
@@ -191,7 +190,7 @@ public final class Binary640Decimal {
     private record Decimal(String digits, int exponent) {
     }
 
-    public static String format(Binary640 value, boolean scientific, int fractionDigits) {
+    static String format(Binary640 value, boolean scientific, int fractionDigits) {
         if (fractionDigits < 0) {
             throw new IllegalArgumentException("fractionDigits must not be negative");
         }

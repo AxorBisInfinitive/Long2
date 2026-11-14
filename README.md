@@ -12,8 +12,9 @@
 - [Int256.java](src/main/java/com/inf/long2/ints/Int256.java)
 - [Int512.java](src/main/java/com/inf/long2/ints/Int512.java)
 - [Int1024.java](src/main/java/com/inf/long2/ints/Int1024.java)
-- [Binary256.java](src/main/java/com/inf/long2/binaries/Binary256.java)
-- [Binary640.java](src/main/java/com/inf/long2/binaries/Binary640.java)
+- [Binary256.java](src/main/java/com/inf/long2/binaries/binary256/Binary256.java)
+- [Binary640.java](src/main/java/com/inf/long2/binaries/binary640/Binary640.java)
+- [Binary1280.java](src/main/java/com/inf/long2/binaries/binary1280/Binary1280.java)
 
 ## 作为依赖
 

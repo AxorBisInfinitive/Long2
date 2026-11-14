@@ -3,11 +3,10 @@ package com.inf.long2.binaries.binary256;
 import java.util.Arrays;
 import java.util.Objects;
 
-import com.inf.long2.binaries.Binary256;
 import com.inf.long2.binaries.internal.UnsignedWords;
 
 /** 精确十进制转换；幅值低组在前，不经过其他浮点格式。 */
-public final class Binary256Decimal {
+final class Binary256Decimal {
     private static final long EXPONENT_LIMIT = Long.MAX_VALUE / 4;
     // 仅缓存 5^(2^i), i <= 16；覆盖全部输出指数，缓存容量不随输入增长。
     private static final long[][] FIVE_POWERS = new long[17][];
@@ -28,7 +27,7 @@ public final class Binary256Decimal {
             int first, int last, long scale) {
     }
 
-    public static boolean isValid(String text) {
+    static boolean isValid(String text) {
         return scan(text) != null;
     }
 
@@ -102,7 +101,7 @@ public final class Binary256Decimal {
         return new ScannedDecimal(TextKind.FINITE, negative, start, end, first, last, scale);
     }
 
-    public static Binary256 parse(String text) {
+    static Binary256 parse(String text) {
         Objects.requireNonNull(text);
         ScannedDecimal scanned = scan(text);
         if (scanned == null) {
@@ -164,7 +163,7 @@ public final class Binary256Decimal {
         return new NumberFormatException("Invalid decimal value: " + text);
     }
 
-    public static String format(Binary256 value, boolean scientific) {
+    static String format(Binary256 value, boolean scientific) {
         if (value.isNaN()) {
             return "NaN";
         }
@@ -195,7 +194,7 @@ public final class Binary256Decimal {
     private record Decimal(String digits, int exponent) {
     }
 
-    public static String format(Binary256 value, boolean scientific, int fractionDigits) {
+    static String format(Binary256 value, boolean scientific, int fractionDigits) {
         if (fractionDigits < 0) {
             throw new IllegalArgumentException("fractionDigits must not be negative");
         }

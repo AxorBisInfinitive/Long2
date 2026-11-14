@@ -1,6 +1,5 @@
 package com.inf.long2.binaries.binary640;
 
-import com.inf.long2.binaries.Binary640;
 import java.math.BigInteger;
 import java.util.List;
 import org.junit.jupiter.api.Test;

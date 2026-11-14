@@ -13,7 +13,6 @@ import java.util.function.IntConsumer;
 import org.junit.jupiter.api.Test;
 
 import com.inf.long2.Int;
-import com.inf.long2.binaries.Binary256;
 
 class Binary256IntegerConversionTest {
     private static final BigInteger ONE = BigInteger.ONE;

@@ -1,6 +1,5 @@
 package com.inf.long2.binaries.binary1280;
 
-import com.inf.long2.binaries.Binary1280;
 
 import java.math.BigInteger;
 

@@ -8,9 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
-import com.inf.long2.binaries.Binary1280;
-import com.inf.long2.binaries.Binary256;
-import com.inf.long2.binaries.Binary640;
+import com.inf.long2.binaries.binary1280.Binary1280;
+import com.inf.long2.binaries.binary256.Binary256;
+import com.inf.long2.binaries.binary640.Binary640;
 import com.inf.long2.binaries.binary256.baseline.Binary256Baseline;
 
 class MathCoreTest {
@@ -18,10 +18,12 @@ class MathCoreTest {
     void forwardsBinary256ResultsBitForBit() {
         Binary256 multiplier = Binary256.of(3);
         Binary256 addend = Binary256.of(-15);
+        byte[] nanBits = Binary256.NEGATIVE_INFINITY.toBytes();
+        nanBits[nanBits.length - 1] = 1;
         for (Binary256 value : new Binary256[] {Binary256.of(5), Binary256.of(-6), Binary256.ONE.nextUp(),
                 Binary256.MIN_VALUE, Binary256.MAX_VALUE, Binary256.ZERO, Binary256.NEGATIVE_ZERO,
                 Binary256.POSITIVE_INFINITY, Binary256.NEGATIVE_INFINITY,
-                Binary256.fromRawBits(0xffff_f000_0000_0000L, 0, 0, 1)}) {
+                Binary256.of(nanBits)}) {
             Binary<?> dynamic = value;
             Binary256 root = MathCore.sqrt(value);
             Binary256 fused = MathCore.fma(value, multiplier, addend);
@@ -42,10 +44,12 @@ class MathCoreTest {
     void forwardsBinary640ResultsBitForBit() {
         Binary640 multiplier = Binary640.of(3);
         Binary640 addend = Binary640.of(-15);
+        byte[] nanBits = Binary640.NEGATIVE_INFINITY.toBytes();
+        nanBits[nanBits.length - 1] = 1;
         for (Binary640 value : new Binary640[] {Binary640.of(5), Binary640.of(-6), Binary640.ONE.nextUp(),
                 Binary640.MIN_VALUE, Binary640.MAX_VALUE, Binary640.ZERO, Binary640.NEGATIVE_ZERO,
                 Binary640.POSITIVE_INFINITY, Binary640.NEGATIVE_INFINITY,
-                Binary640.fromRawBits(0xffff_ff80_0000_0000L, 0, 0, 0, 0, 0, 0, 0, 0, 1)}) {
+                Binary640.of(nanBits)}) {
             Binary<?> dynamic = value;
             Binary640 root = MathCore.sqrt(value);
             Binary640 fused = MathCore.fma(value, multiplier, addend);

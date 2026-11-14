@@ -13,7 +13,6 @@ import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 
-import com.inf.long2.binaries.Binary256;
 
 class Binary256ValidationTest {
     private static final Pattern DECIMAL = Pattern.compile(
