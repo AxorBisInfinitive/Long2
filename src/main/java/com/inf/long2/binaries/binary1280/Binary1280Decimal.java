@@ -1,15 +1,21 @@
 package com.inf.long2.binaries.binary1280;
 
-import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Objects;
 
+import com.inf.long2.binaries.internal.UnsignedWords.Division;
 
 import static com.inf.long2.binaries.binary1280.Binary1280Encoding.*;
+import static com.inf.long2.binaries.binary1280.Binary1280DecimalIntegers.*;
+import static com.inf.long2.binaries.internal.UnsignedWords.anyLow;
+import static com.inf.long2.binaries.internal.UnsignedWords.bit;
+import static com.inf.long2.binaries.internal.UnsignedWords.bitLength;
+import static com.inf.long2.binaries.internal.UnsignedWords.compare;
+import static com.inf.long2.binaries.internal.UnsignedWords.left;
+import static com.inf.long2.binaries.internal.UnsignedWords.trim;
 
 /** 对短文本使用有向整数区间，临界比较和长输出使用精确整数。 */
 final class Binary1280Decimal {
-    private static final BigInteger FIVE = BigInteger.valueOf(5);
     private static final long EXPONENT_LIMIT = Long.MAX_VALUE / 4;
     private static final int DECIMAL_LIMIT = 41_000_000;
     private static final int PREFIX_DIGITS = 420;
@@ -127,75 +133,137 @@ final class Binary1280Decimal {
         }
 
         int count = Math.min(PREFIX_DIGITS, scanned.last() - scanned.first() + 1);
-        StringBuilder digits = new StringBuilder(count);
-        int ordinal = 0;
-        for (int i = scanned.start(); i < scanned.end() && digits.length() < count; i++) {
+        long[] prefix = ZERO;
+        int ordinal = 0, read = 0, chunk = 0, chunkDigits = 0;
+        for (int i = scanned.start(); i < scanned.end() && read < count; i++) {
             char c = text.charAt(i);
             if (c != '.' && ordinal++ >= scanned.first()) {
-                digits.append(c);
-            }
-        }
-        BigInteger prefix = new BigInteger(digits.toString());
-        boolean truncated = scanned.last() - scanned.first() + 1 > count;
-        BigInteger upper = truncated ? prefix.add(BigInteger.ONE) : prefix;
-        int decimalScale = Math.toIntExact(exponent - count + 1);
-        for (int bits = INITIAL_BITS; ; bits *= 2) {
-            Bounds bounds = scaleByTen(new Bounds(prefix, upper, 0), decimalScale, bits);
-            Binary1280 low = roundEndpoint(bounds.low(), bounds.scale());
-            Binary1280 high = roundEndpoint(bounds.high(), bounds.scale());
-            if (low.equals(high)) {
-                return negative ? low.negate() : low;
-            }
-            if (low.nextUp().equals(high)) {
-                Boundary boundary = midpoint(low, high);
-                int comparison = -compareScaled(boundary.value(), -decimalScale, prefix);
-                if (truncated && comparison <= 0) {
-                    // 截断系数含非零尾部，两个前缀端点都是严格界。
-                    if (comparison == 0) {
-                        comparison = 1;
-                    } else if (compareScaled(boundary.value(), -decimalScale, upper) < 0) {
-                        comparison = compareText(text, scanned, exponent, exactDecimal(boundary.value()));
-                    }
+                chunk = 10 * chunk + c - '0';
+                read++;
+                if (++chunkDigits == 9) {
+                    prefix = multiplyAdd(prefix, 1_000_000_000, chunk);
+                    chunk = chunkDigits = 0;
                 }
-                Binary1280 result = comparison < 0 || comparison == 0 && boundary.included() ? low : high;
-                return negative ? result.negate() : result;
             }
-            // 420 位前缀比最窄的相对中点间距更细，扩充幂精度后至多跨一个中点。
         }
+        if (chunkDigits != 0) {
+            int factor = 1;
+            for (int i = 0; i < chunkDigits; i++) {
+                factor *= 10;
+            }
+            prefix = multiplyAdd(prefix, factor, chunk);
+        }
+        boolean truncated = scanned.last() - scanned.first() + 1 > count;
+        long[] upper = truncated ? increment(prefix) : prefix;
+        int decimalScale = Math.toIntExact(exponent - count + 1);
+        Binary1280 low = null, high = null;
+        for (int bits = INITIAL_BITS; bits <= 2 * INITIAL_BITS; bits *= 2) {
+            Bounds bounds = scaleByTen(new Bounds(prefix, upper, 0), decimalScale, bits);
+            low = Binary1280Rounding.roundDyadic(false, bounds.low(), bounds.scale());
+            high = Binary1280Rounding.roundDyadic(false, bounds.high(), bounds.scale());
+            if (low.equals(high) || low.nextUp().equals(high)) {
+                break;
+            }
+        }
+        if (!low.equals(high) && !low.nextUp().equals(high)) {
+            long[] power = powerOfFive(Math.abs(decimalScale));
+            low = roundExactEndpoint(prefix, decimalScale, power);
+            high = truncated ? roundExactEndpoint(upper, decimalScale, power) : low;
+        }
+        Binary1280 result = low;
+        if (!low.equals(high)) {
+            Boundary boundary = midpoint(low, high);
+            int comparison = -compareScaled(boundary.value(), -decimalScale, prefix);
+            if (truncated && comparison <= 0) {
+                // 截断系数含非零尾部，两个前缀端点都是严格界。
+                if (comparison == 0) {
+                    comparison = 1;
+                } else if (compareScaled(boundary.value(), -decimalScale, upper) < 0) {
+                    comparison = compareText(text, scanned, exponent, boundary.value());
+                }
+            }
+            result = comparison < 0 || comparison == 0 && boundary.included() ? low : high;
+        }
+        return negative ? result.negate() : result;
     }
 
-    private static int compareText(String input, ScannedDecimal scanned, long exponent, Decimal exact) {
-        long exactExponent = exact.digits().length() - 1L + exact.scale();
+    private static int compareText(String input, ScannedDecimal scanned, long exponent, Dyadic boundary) {
+        int exactExponent = decimalExponent(boundary);
         if (exponent != exactExponent) {
             return Long.compare(exponent, exactExponent);
         }
-        int ordinal = 0, position = 0;
-        for (int i = scanned.start(); i < scanned.end() && ordinal <= scanned.last(); i++) {
-            char c = input.charAt(i);
-            if (c == '.' || ordinal++ < scanned.first()) {
-                continue;
-            }
-            char expected = position < exact.digits().length() ? exact.digits().charAt(position) : '0';
-            if (c != expected) {
-                return Character.compare(c, expected);
-            }
-            position++;
-        }
-        while (position < exact.digits().length()) {
-            if (exact.digits().charAt(position++) != '0') {
-                return -1;
-            }
-        }
-        return 0;
+        TextComparison comparison = new TextComparison(input, scanned);
+        visitDecimal(exactCoefficient(boundary).magnitude(), comparison);
+        return comparison.result == 0 && comparison.ordinal <= scanned.last() ? 1 : comparison.result;
     }
 
-    private static Binary1280 roundEndpoint(BigInteger magnitude, long scale) {
-        byte[] bytes = magnitude.toByteArray();
-        long[] words = new long[(magnitude.bitLength() + 63) / 64];
-        for (int i = 0; i < Math.min(bytes.length, words.length * 8); i++) {
-            words[i / 8] |= (bytes[bytes.length - 1 - i] & 0xffL) << (8 * (i & 7));
+    private static final class TextComparison implements DecimalBlockConsumer {
+        private final String input;
+        private final ScannedDecimal scanned;
+        private int position, ordinal, result;
+
+        TextComparison(String input, ScannedDecimal scanned) {
+            this.input = input;
+            this.scanned = scanned;
+            position = scanned.start();
+            while (ordinal < scanned.first()) {
+                nextDigit();
+            }
         }
-        return Binary1280Rounding.roundDyadic(false, words, scale);
+
+        private int nextDigit() {
+            if (ordinal > scanned.last()) {
+                return 0;
+            }
+            char digit = input.charAt(position++);
+            if (digit == '.') {
+                digit = input.charAt(position++);
+            }
+            ordinal++;
+            return digit - '0';
+        }
+
+        @Override
+        public boolean accept(int block, int width) {
+            int divisor = 100_000_000;
+            if (width == 0) {
+                while (divisor > 1 && block < divisor) {
+                    divisor /= 10;
+                }
+            }
+            for (; divisor != 0; divisor /= 10) {
+                int digit = block / divisor;
+                result = Integer.compare(nextDigit(), digit);
+                if (result != 0) {
+                    return false;
+                }
+                block -= digit * divisor;
+            }
+            return true;
+        }
+    }
+
+    private static Binary1280 roundExactEndpoint(long[] coefficient, int scale, long[] powerOfFive) {
+        if (scale >= 0) {
+            return Binary1280Rounding.roundDyadic(false, multiply(coefficient, powerOfFive), scale);
+        }
+        int difference = bitLength(coefficient) - bitLength(powerOfFive);
+        long exponent = scale + (long) difference
+                - (compareDyadic(coefficient, -difference, powerOfFive) < 0 ? 1 : 0);
+        if (exponent > EMAX) {
+            return Binary1280.POSITIVE_INFINITY;
+        }
+        if (exponent < QMIN - 1L) {
+            return Binary1280.ZERO;
+        }
+        long quantum = Math.max(exponent - FRACTION_BITS, QMIN);
+        int alignment = Math.toIntExact(scale - quantum);
+        long[] denominator = alignment < 0 ? left(powerOfFive, -alignment) : powerOfFive;
+        long[] numerator = alignment >= 0 ? left(coefficient, alignment) : coefficient;
+        Division division = divide(numerator, denominator);
+        int half = compareDyadic(division.remainder(), 1, denominator);
+        return Binary1280Rounding.packRounded(false, Arrays.copyOf(division.quotient(), WORDS), quantum,
+                half > 0 || half == 0 && bit(division.quotient(), 0));
     }
 
     static String format(Binary1280 value, boolean scientific) {
@@ -236,7 +304,7 @@ final class Binary1280Decimal {
         if (order < -1) {
             digits = "0";
         } else if (order < PREFIX_DIGITS) {
-            digits = roundedDecimalInteger(source, Math.toIntExact(shift)).toString();
+            digits = decimalDigits(roundedDecimalInteger(source, Math.toIntExact(shift)));
         } else {
             Decimal exact = exactDecimal(source);
             long places = exact.scale() + shift;
@@ -278,7 +346,7 @@ final class Binary1280Decimal {
                 : plainFixed(negative, "0", 0, fractionDigits);
     }
 
-    private record Dyadic(BigInteger magnitude, long scale) {
+    private record Dyadic(long[] magnitude, long scale) {
     }
 
     private record Boundary(Dyadic value, boolean included) {
@@ -287,17 +355,14 @@ final class Binary1280Decimal {
     private record Decimal(String digits, int scale) {
     }
 
-    private record Bounds(BigInteger low, BigInteger high, long scale) {
+    private record DecimalCoefficient(long[] magnitude, int scale) {
+    }
+
+    private record Bounds(long[] low, long[] high, long scale) {
     }
 
     private static Dyadic dyadic(Binary1280 value) {
-        byte[] bytes = value.toBytes();
-        // 原始最高组有 29 位编码字段，有效数字由公开数学分解提供。
-        long top = value.getSignificandLong(0);
-        for (int i = 0; i < 8; i++) {
-            bytes[i] = (byte) (top >>> (56 - 8 * i));
-        }
-        return new Dyadic(new BigInteger(1, bytes), value.scaleExponent());
+        return new Dyadic(trim(magnitude(value)), value.scaleExponent());
     }
 
     private static boolean even(Binary1280 value) {
@@ -306,10 +371,9 @@ final class Binary1280Decimal {
 
     private static Boundary midpoint(Binary1280 lower, Binary1280 upper) {
         Dyadic a = dyadic(lower);
-        Dyadic b = upper.isInfinite() ? new Dyadic(BigInteger.ONE, EMAX + 1L) : dyadic(upper);
+        Dyadic b = upper.isInfinite() ? new Dyadic(ONE, EMAX + 1L) : dyadic(upper);
         long scale = Math.min(a.scale(), b.scale());
-        BigInteger sum = a.magnitude().shiftLeft(Math.toIntExact(a.scale() - scale))
-                .add(b.magnitude().shiftLeft(Math.toIntExact(b.scale() - scale)));
+        long[] sum = add(shift(a.magnitude(), a.scale() - scale), shift(b.magnitude(), b.scale() - scale));
         return new Boundary(new Dyadic(sum, scale - 1), even(lower));
     }
 
@@ -329,11 +393,11 @@ final class Binary1280Decimal {
             }
         }
         int scale = exponent - left + 1;
-        BigInteger coefficient = candidate(source, lower, upper, scale);
+        long[] coefficient = candidate(source, lower, upper, scale);
         if (coefficient == null) {
             throw new AssertionError("No round-trip decimal within 378 significant digits");
         }
-        String digits = coefficient.toString();
+        String digits = decimalDigits(coefficient);
         int end = digits.length();
         while (end > 1 && digits.charAt(end - 1) == '0') {
             end--;
@@ -341,9 +405,9 @@ final class Binary1280Decimal {
         return new Decimal(digits.substring(0, end), scale + digits.length() - end);
     }
 
-    private static BigInteger candidate(Dyadic source, Boundary lower, Boundary upper, int scale) {
+    private static long[] candidate(Dyadic source, Boundary lower, Boundary upper, int scale) {
         int shift = -scale;
-        BigInteger down = floorScaled(source, shift), up = down.add(BigInteger.ONE);
+        long[] down = floorScaled(source, shift), up = increment(down);
         int low = compareScaled(lower.value(), shift, down);
         int high = compareScaled(upper.value(), shift, up);
         // 中点以较低候选的奇偶定开闭。下边界属于其上方的值时取反。
@@ -359,12 +423,12 @@ final class Binary1280Decimal {
     }
 
     private static int decimalExponent(Dyadic source) {
-        long binaryExponent = source.scale() + source.magnitude().bitLength() - 1;
+        long binaryExponent = source.scale() + bitLength(source.magnitude()) - 1;
         int exponent = (int) Math.floor(binaryExponent * 0.3010299956639812);
-        while (compareScaled(source, -exponent, BigInteger.ONE) < 0) {
+        while (compareScaled(source, -exponent, ONE) < 0) {
             exponent--;
         }
-        while (compareScaled(source, -exponent - 1, BigInteger.ONE) >= 0) {
+        while (compareScaled(source, -exponent - 1, ONE) >= 0) {
             exponent++;
         }
         return exponent;
@@ -374,67 +438,62 @@ final class Binary1280Decimal {
         if (power == 0) {
             return value;
         }
-        Bounds factor = powerOfFive(Math.abs(power), bits);
+        Bounds factor = enclosePowerOfFive(Math.abs(power), bits);
         if (power > 0) {
-            Bounds product = multiply(value, factor, bits);
+            Bounds product = multiplyBounds(value, factor, bits);
             return new Bounds(product.low(), product.high(), product.scale() + power);
         }
-        int shift = bits + factor.high().bitLength();
-        BigInteger low = value.low().shiftLeft(shift).divide(factor.high());
-        BigInteger[] upper = value.high().shiftLeft(shift).divideAndRemainder(factor.low());
-        BigInteger high = upper[1].signum() == 0 ? upper[0] : upper[0].add(BigInteger.ONE);
+        int shift = bits + bitLength(factor.high());
+        long[] low = divide(left(value.low(), shift), factor.high()).quotient();
+        Division upper = divide(left(value.high(), shift), factor.low());
+        long[] high = upper.remainder().length == 0 ? upper.quotient() : increment(upper.quotient());
         return enclose(low, high, value.scale() - factor.scale() - shift + power, bits);
     }
 
-    private static Bounds powerOfFive(int exponent, int bits) {
-        Bounds result = new Bounds(BigInteger.ONE, BigInteger.ONE, 0);
+    private static Bounds enclosePowerOfFive(int exponent, int bits) {
+        Bounds result = new Bounds(ONE, ONE, 0);
         Bounds factor = new Bounds(FIVE, FIVE, 0);
         while (exponent != 0) {
             if ((exponent & 1) != 0) {
-                result = multiply(result, factor, bits);
+                result = multiplyBounds(result, factor, bits);
             }
             exponent >>>= 1;
             if (exponent != 0) {
-                factor = multiply(factor, factor, bits);
+                factor = multiplyBounds(factor, factor, bits);
             }
         }
         return result;
     }
 
-    private static Bounds multiply(Bounds a, Bounds b, int bits) {
-        return enclose(a.low().multiply(b.low()), a.high().multiply(b.high()), a.scale() + b.scale(), bits);
+    private static Bounds multiplyBounds(Bounds a, Bounds b, int bits) {
+        return enclose(multiply(a.low(), b.low()), multiply(a.high(), b.high()), a.scale() + b.scale(), bits);
     }
 
-    private static Bounds enclose(BigInteger low, BigInteger high, long scale, int bits) {
-        int discard = high.bitLength() - bits;
+    private static Bounds enclose(long[] low, long[] high, long scale, int bits) {
+        int discard = bitLength(high) - bits;
         if (discard <= 0) {
             return new Bounds(low, high, scale);
         }
-        BigInteger upper = high.shiftRight(discard);
-        if (high.getLowestSetBit() < discard) {
-            upper = upper.add(BigInteger.ONE);
+        long[] upper = right(high, discard);
+        if (anyLow(high, discard)) {
+            upper = increment(upper);
         }
-        return new Bounds(low.shiftRight(discard), upper, scale + discard);
+        if (bitLength(upper) > bits) {
+            discard++;
+            upper = right(upper, 1);
+        }
+        return new Bounds(right(low, discard), upper, scale + discard);
     }
 
     private static Bounds scaledBounds(Dyadic value, int power, int bits) {
         return scaleByTen(new Bounds(value.magnitude(), value.magnitude(), value.scale()), power, bits);
     }
 
-    private static int compareDyadic(BigInteger a, long scale, BigInteger b) {
-        if (a.signum() == 0 || b.signum() == 0) {
-            return Integer.compare(a.signum(), b.signum());
-        }
-        long bits = a.bitLength() + scale;
-        if (bits != b.bitLength()) {
-            return Long.compare(bits, b.bitLength());
-        }
-        return scale >= 0 ? a.shiftLeft(Math.toIntExact(scale)).compareTo(b)
-                : a.compareTo(b.shiftLeft(Math.toIntExact(-scale)));
-    }
-
     /** 比较 value × 10^power 与 integer。上下界包含精确值。 */
-    private static int compareScaled(Dyadic value, int power, BigInteger integer) {
+    private static int compareScaled(Dyadic value, int power, long[] integer) {
+        if (value.magnitude().length == 0 || integer.length == 0) {
+            return Integer.compare(value.magnitude().length, integer.length);
+        }
         for (int bits = INITIAL_BITS; bits <= 2 * INITIAL_BITS; bits *= 2) {
             Bounds bounds = scaledBounds(value, power, bits);
             int low = compareDyadic(bounds.low(), bounds.scale(), integer);
@@ -444,53 +503,77 @@ final class Binary1280Decimal {
             }
         }
         // 消去两侧的二进制因子，减少精确比较所需的移位空间。
-        int aZeros = value.magnitude().getLowestSetBit();
-        int bZeros = integer.getLowestSetBit();
-        BigInteger a = value.magnitude().shiftRight(aZeros);
-        BigInteger b = integer.shiftRight(bZeros);
+        int aZeros = trailingZeros(value.magnitude());
+        int bZeros = trailingZeros(integer);
+        long[] a = right(value.magnitude(), aZeros);
+        long[] b = right(integer, bZeros);
         long scale = value.scale() + power + aZeros - bZeros;
-        if (power >= 0) {
-            return compareDyadic(a.multiply(FIVE.pow(power)), scale, b);
+        // 去掉二因子后两侧幅值为奇数，位权相同时可用小系数精确判等及比较。
+        if (scale == 0) {
+            return power >= 0 ? compareTimesPowerOfFive(a, b, power)
+                    : -compareTimesPowerOfFive(b, a, -power);
         }
-        return compareDyadic(a, scale, b.multiply(FIVE.pow(-power)));
+        return power >= 0 ? compareDyadic(multiply(a, powerOfFive(power)), scale, b)
+                : compareDyadic(a, scale, multiply(b, powerOfFive(-power)));
     }
 
-    private static BigInteger floorScaled(Dyadic value, int power) {
+    /** 比较 a × 5^power 与 b，通过缩小 b 避免构造巨大幂。 */
+    private static int compareTimesPowerOfFive(long[] a, long[] b, int power) {
+        if (bitLength(a) + 2L * power > bitLength(b)) {
+            return 1;
+        }
+        boolean fractional = false;
+        while (power > 0 && b.length != 0) {
+            int count = Math.min(power, 13);
+            int divisor = 1;
+            for (int i = 0; i < count; i++) {
+                divisor *= 5;
+            }
+            Division division = divide(b, new long[] {divisor});
+            fractional |= division.remainder().length != 0;
+            b = division.quotient();
+            power -= count;
+        }
+        int comparison = compare(a, b);
+        return comparison == 0 && fractional ? -1 : comparison;
+    }
+
+    private static long[] floorScaled(Dyadic value, int power) {
         for (int bits = INITIAL_BITS; bits <= 2 * INITIAL_BITS; bits *= 2) {
             Bounds bounds = scaledBounds(value, power, bits);
-            BigInteger low = shift(bounds.low(), bounds.scale()), high = shift(bounds.high(), bounds.scale());
-            if (low.equals(high)) {
+            long[] low = shift(bounds.low(), bounds.scale()), high = shift(bounds.high(), bounds.scale());
+            if (Arrays.equals(low, high)) {
                 return low;
             }
-            if (high.equals(low.add(BigInteger.ONE))) {
+            if (Arrays.equals(high, increment(low))) {
                 return compareScaled(value, power, high) < 0 ? low : high;
             }
         }
         long scale = value.scale() + power;
         if (power >= 0) {
-            return shift(value.magnitude().multiply(FIVE.pow(power)), scale);
+            return shift(multiply(value.magnitude(), powerOfFive(power)), scale);
         }
-        return shift(value.magnitude(), scale).divide(FIVE.pow(-power));
+        return divide(shift(value.magnitude(), scale), powerOfFive(-power)).quotient();
     }
 
-    private static BigInteger shift(BigInteger value, long scale) {
-        return scale >= 0 ? value.shiftLeft(Math.toIntExact(scale))
-                : -scale >= value.bitLength() ? BigInteger.ZERO : value.shiftRight(Math.toIntExact(-scale));
-    }
-
-    private static BigInteger roundedDecimalInteger(Dyadic value, int power) {
-        BigInteger floor = floorScaled(value, power);
+    private static long[] roundedDecimalInteger(Dyadic value, int power) {
+        long[] floor = floorScaled(value, power);
         int comparison = compareScaled(new Dyadic(value.magnitude(), value.scale() + 1),
-                power, floor.shiftLeft(1).add(BigInteger.ONE));
-        return comparison > 0 || comparison == 0 && floor.testBit(0) ? floor.add(BigInteger.ONE) : floor;
+                power, increment(left(floor, 1)));
+        return comparison > 0 || comparison == 0 && bit(floor, 0) ? increment(floor) : floor;
     }
 
     private static Decimal exactDecimal(Dyadic value) {
-        int zeros = value.magnitude().getLowestSetBit();
-        BigInteger magnitude = value.magnitude().shiftRight(zeros);
+        DecimalCoefficient exact = exactCoefficient(value);
+        return new Decimal(decimalDigits(exact.magnitude()), exact.scale());
+    }
+
+    private static DecimalCoefficient exactCoefficient(Dyadic value) {
+        int zeros = trailingZeros(value.magnitude());
+        long[] magnitude = right(value.magnitude(), zeros);
         int scale = Math.toIntExact(value.scale() + zeros);
-        return scale >= 0 ? new Decimal(magnitude.shiftLeft(scale).toString(), 0)
-                : new Decimal(magnitude.multiply(FIVE.pow(-scale)).toString(), scale);
+        return scale >= 0 ? new DecimalCoefficient(left(magnitude, scale), 0)
+                : new DecimalCoefficient(multiply(magnitude, powerOfFive(-scale)), scale);
     }
 
     private static String roundDigits(String exact, int discard) {

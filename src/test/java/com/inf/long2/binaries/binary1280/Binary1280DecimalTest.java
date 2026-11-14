@@ -55,6 +55,17 @@ class Binary1280DecimalTest {
     }
 
     @Test
+    void preciseMidpointComparisonHandlesSparseAndPaddedSignificands() {
+        BigInteger numerator = BigInteger.ONE.shiftLeft(1253).subtract(BigInteger.ONE);
+        BigDecimal midpoint = new BigDecimal(numerator.multiply(BigInteger.valueOf(5).pow(1253)), 1253);
+        BigDecimal epsilon = BigDecimal.ONE.scaleByPowerOfTen(-1600);
+        assertEquals(ONE.nextDown(), of("000" + midpoint.subtract(epsilon).toPlainString() + "000"));
+        assertEquals(ONE, of("000" + midpoint.toPlainString() + "000"));
+        assertEquals(ONE, of(midpoint.add(epsilon).toEngineeringString()));
+        assertEquals(ONE.negate(), of("-000" + midpoint.toPlainString() + "000"));
+    }
+
+    @Test
     void randomDecimalInputMatchesExactRationalReference() {
         Random random = new Random(0x1280decaL);
         for (int i = 0; i < 150; i++) {
