@@ -151,17 +151,17 @@ class Binary256Test {
 
     @Test
     void fusesMultiplicationBeforeRoundingOverflowAndUnderflow() {
-        assertValue(Binary256.MAX_VALUE, Binary256.MAX_VALUE.fma(Binary256.of(2L), Binary256.MAX_VALUE.negate()));
+        assertValue(Binary256.MAX_VALUE, Binary256.fma(Binary256.MAX_VALUE, Binary256.of(2L), Binary256.MAX_VALUE.negate()));
         assertValue(Binary256.POSITIVE_INFINITY, Binary256.MAX_VALUE.multiply(Binary256.of(2L)));
         Binary256 delta = Binary256.ONE.scalb(-119);
         Binary256 a = Binary256.ONE.add(delta), b = Binary256.ONE.subtract(delta);
-        assertValue(Binary256.ONE.scalb(-238).negate(), a.fma(b, Binary256.ONE.negate()));
+        assertValue(Binary256.ONE.scalb(-238).negate(), Binary256.fma(a, b, Binary256.ONE.negate()));
         assertValue(Binary256.ZERO, a.multiply(b).subtract(Binary256.ONE));
         assertValue(Binary256.MIN_VALUE.add(Binary256.MIN_VALUE),
-                Binary256.MIN_VALUE.fma(Binary256.of(0.5), Binary256.MIN_VALUE));
+                Binary256.fma(Binary256.MIN_VALUE, Binary256.of(0.5), Binary256.MIN_VALUE));
         assertValue(Binary256.NEGATIVE_ZERO,
-                Binary256.NEGATIVE_ZERO.fma(Binary256.ONE, Binary256.NEGATIVE_ZERO));
-        assertValue(Binary256.ZERO, Binary256.ZERO.fma(Binary256.ONE, Binary256.NEGATIVE_ZERO));
+                Binary256.fma(Binary256.NEGATIVE_ZERO, Binary256.ONE, Binary256.NEGATIVE_ZERO));
+        assertValue(Binary256.ZERO, Binary256.fma(Binary256.ZERO, Binary256.ONE, Binary256.NEGATIVE_ZERO));
     }
 
     @Test
@@ -174,7 +174,7 @@ class Binary256Test {
             assertValue(Binary256Reference.add(a, b.negate()), a.subtract(b));
             assertValue(Binary256Reference.multiply(a, b), a.multiply(b));
             assertValue(Binary256Reference.divide(a, b), a.divide(b));
-            assertValue(Binary256Reference.fma(a, b, c), a.fma(b, c));
+            assertValue(Binary256Reference.fma(a, b, c), Binary256.fma(a, b, c));
             assertValue(Binary256Reference.remainder(a, b, false), a.remainder(b));
             assertValue(Binary256Reference.remainder(a, b, true), a.ieeeRemainder(b));
         }
@@ -185,15 +185,15 @@ class Binary256Test {
         Random random = new Random(0x2565007L);
         for (int i = 0; i < 160; i++) {
             Binary256 value = randomFinite(random, true).abs();
-            assertValue(Binary256Reference.sqrt(value), value.sqrt());
+            assertValue(Binary256Reference.sqrt(value), Binary256.sqrt(value));
         }
         for (Binary256 value : new Binary256[] {Binary256.MIN_VALUE, Binary256.MIN_NORMAL,
                 Binary256.MAX_VALUE, Binary256.ONE, Binary256.ONE.nextUp(), Binary256.ONE.nextDown()}) {
-            assertValue(Binary256Reference.sqrt(value), value.sqrt());
+            assertValue(Binary256Reference.sqrt(value), Binary256.sqrt(value));
         }
-        assertValue(Binary256.of(3L), Binary256.of(9L).sqrt());
-        assertValue(Binary256.ONE.scalb(-131189), Binary256.MIN_VALUE.sqrt());
-        assertValue(Binary256.NEGATIVE_ZERO, Binary256.NEGATIVE_ZERO.sqrt());
+        assertValue(Binary256.of(3L), Binary256.sqrt(Binary256.of(9L)));
+        assertValue(Binary256.ONE.scalb(-131189), Binary256.sqrt(Binary256.MIN_VALUE));
+        assertValue(Binary256.NEGATIVE_ZERO, Binary256.sqrt(Binary256.NEGATIVE_ZERO));
     }
 
     @Test
@@ -218,7 +218,7 @@ class Binary256Test {
         double[] values = {Double.NEGATIVE_INFINITY, -2, -0.0, 0.0, 2, Double.POSITIVE_INFINITY, Double.NaN};
         for (double a : values) {
             Binary256 x = Binary256.of(a);
-            assertDouble(Math.sqrt(a), x.sqrt().toDouble());
+            assertDouble(Math.sqrt(a), Binary256.sqrt(x).toDouble());
             for (double b : values) {
                 Binary256 y = Binary256.of(b);
                 assertDouble(a + b, x.add(y).toDouble());
@@ -228,7 +228,7 @@ class Binary256Test {
                 assertDouble(a % b, x.remainder(y).toDouble());
                 assertDouble(Math.IEEEremainder(a, b), x.ieeeRemainder(y).toDouble());
                 for (double c : values) {
-                    assertDouble(Math.fma(a, b, c), x.fma(y, Binary256.of(c)).toDouble());
+                    assertDouble(Math.fma(a, b, c), Binary256.fma(x, y, Binary256.of(c)).toDouble());
                 }
             }
         }
@@ -354,8 +354,9 @@ class Binary256Test {
             assertThrows(NullPointerException.class, () -> value.divide(null));
             assertThrows(NullPointerException.class, () -> value.remainder(null));
             assertThrows(NullPointerException.class, () -> value.ieeeRemainder(null));
-            assertThrows(NullPointerException.class, () -> value.fma(null, Binary256.ZERO));
-            assertThrows(NullPointerException.class, () -> value.fma(Binary256.ONE, null));
+            assertThrows(NullPointerException.class, () -> Binary256.fma(null, value, Binary256.ZERO));
+            assertThrows(NullPointerException.class, () -> Binary256.fma(value, null, Binary256.ZERO));
+            assertThrows(NullPointerException.class, () -> Binary256.fma(value, Binary256.ONE, null));
             assertThrows(NullPointerException.class, () -> value.compareTo(null));
             assertThrows(NullPointerException.class, () -> value.compareNumerically(null));
         }

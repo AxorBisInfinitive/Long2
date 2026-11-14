@@ -55,10 +55,10 @@ class Binary640BoundaryAuditTest {
                 boolean negative = x.signBit() ^ y.signBit();
                 Binary640 increasing = negative ? Binary640.MIN_VALUE.negate() : Binary640.MIN_VALUE;
                 Binary640 decreasing = increasing.negate();
-                assertRaw(negative ? Binary640.NEGATIVE_INFINITY : Binary640.POSITIVE_INFINITY, x.fma(y, increasing));
-                assertRaw(negative ? Binary640.MAX_VALUE.negate() : Binary640.MAX_VALUE, x.fma(y, decreasing));
+                assertRaw(negative ? Binary640.NEGATIVE_INFINITY : Binary640.POSITIVE_INFINITY, Binary640.fma(x, y, increasing));
+                assertRaw(negative ? Binary640.MAX_VALUE.negate() : Binary640.MAX_VALUE, Binary640.fma(x, y, decreasing));
                 for (Binary640 tail : new Binary640[] {increasing, decreasing, Binary640.ZERO, Binary640.NEGATIVE_ZERO}) {
-                    assertRaw(Binary640Reference.fma(x, y, tail), x.fma(y, tail));
+                    assertRaw(Binary640Reference.fma(x, y, tail), Binary640.fma(x, y, tail));
                 }
             }
         }
@@ -75,8 +75,8 @@ class Binary640BoundaryAuditTest {
                 long pe = product.bitLength() - 1L - 1230;
                 Binary640 c = dyadic(false, new BigInteger(616, random).setBit(615), pe - gap - 615);
                 for (Binary640 tail : new Binary640[] {c, c.negate()}) {
-                    assertRaw(Binary640Reference.fma(a, b, tail), a.fma(b, tail));
-                    assertRaw(Binary640Reference.fma(a.negate(), b, tail), a.negate().fma(b, tail));
+                    assertRaw(Binary640Reference.fma(a, b, tail), Binary640.fma(a, b, tail));
+                    assertRaw(Binary640Reference.fma(a.negate(), b, tail), Binary640.fma(a.negate(), b, tail));
                 }
             }
         }
@@ -89,13 +89,13 @@ class Binary640BoundaryAuditTest {
             for (Binary640 x : new Binary640[] {a, a.negate()}) {
                 for (Binary640 y : new Binary640[] {Binary640.of(0.5), Binary640.of(-0.5)}) {
                     for (Binary640 c : new Binary640[] {Binary640.MIN_VALUE, Binary640.MIN_VALUE.negate()}) {
-                        assertRaw(Binary640Reference.fma(x, y, c), x.fma(y, c));
+                        assertRaw(Binary640Reference.fma(x, y, c), Binary640.fma(x, y, c));
                     }
                 }
             }
             assertRaw(Binary640Reference.divide(a, Binary640.of(2L)), a.divide(Binary640.of(2L)));
         }
-        assertRaw(Binary640.NEGATIVE_ZERO, Binary640.MIN_VALUE.fma(Binary640.of(0.5), Binary640.MIN_VALUE.negate()));
+        assertRaw(Binary640.NEGATIVE_ZERO, Binary640.fma(Binary640.MIN_VALUE, Binary640.of(0.5), Binary640.MIN_VALUE.negate()));
     }
 
     @Test
@@ -104,7 +104,7 @@ class Binary640BoundaryAuditTest {
             Binary640 center = Binary640.ONE.scalb(exponent);
             for (Binary640 value : new Binary640[] {center.nextDown(), center, center.nextUp()}) {
                 if (value.isFinite() && !value.isZero()) {
-                    assertRaw(Binary640Reference.sqrt(value), value.sqrt());
+                    assertRaw(Binary640Reference.sqrt(value), Binary640.sqrt(value));
                 }
             }
         }

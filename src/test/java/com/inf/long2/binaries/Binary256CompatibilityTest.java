@@ -63,7 +63,7 @@ class Binary256CompatibilityTest {
 
     private static void assertFma(Bits a, Bits b, Bits c) {
         Binary256 actualA = a.actual(), actualB = b.actual(), actualC = c.actual();
-        assertRaw(a.baseline().fma(b.baseline(), c.baseline()), actualA.fma(actualB, actualC),
+        assertRaw(a.baseline().fma(b.baseline(), c.baseline()), Binary256.fma(actualA, actualB, actualC),
                 "FMA a=" + a + " b=" + b + " c=" + c);
         assertEquals(a, raw(actualA), "FMA receiver must remain unchanged");
         assertEquals(b, raw(actualB), "FMA multiplier must remain unchanged");
@@ -97,17 +97,17 @@ class Binary256CompatibilityTest {
         for (int exponent : new int[] {-262142, -262141, -1, 0, 1, 262142, 262143}) {
             for (BigInteger fraction : List.of(BigInteger.ZERO, ONE, ONE.shiftLeft(235), FRACTION_MASK.subtract(ONE), FRACTION_MASK)) {
                 Bits input = normal(false, exponent, fraction);
-                assertRaw(input.baseline().sqrt(), input.actual().sqrt(), "sqrt binade edge=" + input);
+                assertRaw(input.baseline().sqrt(), Binary256.sqrt(input.actual()), "sqrt binade edge=" + input);
             }
         }
         for (int bit : new int[] {0, 1, 63, 64, 127, 128, 191, 192, 235}) {
             Bits input = bits(ONE.shiftLeft(bit));
-            assertRaw(input.baseline().sqrt(), input.actual().sqrt(), "sqrt subnormal=" + input);
+            assertRaw(input.baseline().sqrt(), Binary256.sqrt(input.actual()), "sqrt subnormal=" + input);
         }
     }
 
     private static void assertSquareRoot(Bits bits) {
-        Binary256 input = bits.actual(), result = input.sqrt();
+        Binary256 input = bits.actual(), result = Binary256.sqrt(input);
         assertRaw(bits.baseline().sqrt(), result, "sqrt input=" + bits);
         assertEquals(raw(Binary256Reference.sqrt(input)), raw(result));
         assertEquals(bits, raw(input));
@@ -117,7 +117,7 @@ class Binary256CompatibilityTest {
         Bits input = exact(square, scale);
         assertSquareRoot(input);
         if ((scale & 1) == 0) {
-            assertEquals(exact(root, scale / 2), raw(input.actual().sqrt()));
+            assertEquals(exact(root, scale / 2), raw(Binary256.sqrt(input.actual())));
         }
     }
 
@@ -328,7 +328,7 @@ class Binary256CompatibilityTest {
             for (int exponent : new int[] {-262142, -1022, -2, 0, 2, 1022, 262142}) {
                 Bits input = normal(false, exponent, magnitude.and(FRACTION_MASK));
                 assertSquareRoot(input);
-                assertEquals(exact(seed, exponent / 2L - 31), raw(input.actual().sqrt()));
+                assertEquals(exact(seed, exponent / 2L - 31), raw(Binary256.sqrt(input.actual())));
             }
         }
     }
@@ -372,7 +372,7 @@ class Binary256CompatibilityTest {
         // 抵消已舍入的乘积，使乘积低位的进位和 sticky 差异能够影响最终编码。
         Bits addend = raw(a.baseline().multiply(b.baseline()).negate());
         assertFma(a, b, addend);
-        assertEquals(raw(Binary256Reference.fma(x, y, addend.actual())), raw(x.fma(y, addend.actual())));
+        assertEquals(raw(Binary256Reference.fma(x, y, addend.actual())), raw(Binary256.fma(x, y, addend.actual())));
     }
 
     private static void assertFiniteMultiply(Bits a, Bits b) {
@@ -844,7 +844,7 @@ class Binary256CompatibilityTest {
                         for (Bits z : List.of(c, c.negative())) {
                             assertFma(x, b, z);
                             assertEquals(raw(Binary256Reference.fma(x.actual(), b.actual(), z.actual())),
-                                    raw(x.actual().fma(b.actual(), z.actual())));
+                                    raw(Binary256.fma(x.actual(), b.actual(), z.actual())));
                         }
                     }
                 }
@@ -865,7 +865,7 @@ class Binary256CompatibilityTest {
                     assertRaw(baseline.add(baseline), value.add(value), "aliased addition");
                     assertRaw(baseline.subtract(baseline), value.subtract(value), "aliased subtraction");
                     assertRaw(baseline.multiply(baseline), value.multiply(value), "aliased multiplication");
-                    assertRaw(baseline.fma(baseline, baseline), value.fma(value, value), "aliased FMA");
+                    assertRaw(baseline.fma(baseline, baseline), Binary256.fma(value, value, value), "aliased FMA");
                     assertEquals(a, raw(value));
                 }
             }
@@ -963,7 +963,7 @@ class Binary256CompatibilityTest {
             }
             assertRaw(expected.negate(), actual.negate(), "negate " + bits);
             assertRaw(expected.abs(), actual.abs(), "abs " + bits);
-            assertRaw(expected.sqrt(), actual.sqrt(), "sqrt " + bits);
+            assertRaw(expected.sqrt(), Binary256.sqrt(actual), "sqrt " + bits);
             assertRaw(expected.nextUp(), actual.nextUp(), "nextUp " + bits);
             assertRaw(expected.nextDown(), actual.nextDown(), "nextDown " + bits);
             assertPrimitives(bits);
@@ -1084,7 +1084,7 @@ class Binary256CompatibilityTest {
         BigInteger lower = ONE.shiftLeft(236).multiply(BigInteger.valueOf(262143))
                 .add(ONE.shiftLeft(118)).add(ONE.shiftLeft(117));
         assertEquals(bits(lower), raw(a.actual().multiply(b.actual())));
-        assertEquals(bits(lower.add(ONE)), raw(a.actual().fma(b.actual(), MINIMUM.actual())));
+        assertEquals(bits(lower.add(ONE)), raw(Binary256.fma(a.actual(), b.actual(), MINIMUM.actual())));
     }
 
     @Test
@@ -1099,8 +1099,8 @@ class Binary256CompatibilityTest {
                 }
                 Bits increasing = negative ? MINIMUM.negative() : MINIMUM;
                 Bits decreasing = negative ? MINIMUM : MINIMUM.negative();
-                assertEquals(negative ? INFINITY.negative() : INFINITY, raw(x.actual().fma(y.actual(), increasing.actual())));
-                assertEquals(negative ? MAXIMUM.negative() : MAXIMUM, raw(x.actual().fma(y.actual(), decreasing.actual())));
+                assertEquals(negative ? INFINITY.negative() : INFINITY, raw(Binary256.fma(x.actual(), y.actual(), increasing.actual())));
+                assertEquals(negative ? MAXIMUM.negative() : MAXIMUM, raw(Binary256.fma(x.actual(), y.actual(), decreasing.actual())));
             }
         }
     }
@@ -1353,7 +1353,7 @@ class Binary256CompatibilityTest {
                     for (int neighbor = -1; neighbor <= 1; neighbor++) {
                         Bits input = bits(encoding.add(BigInteger.valueOf(neighbor)));
                         Binary256 actual = input.actual();
-                        assertRaw(input.baseline().sqrt(), actual.sqrt(), "sqrt input=" + input);
+                        assertRaw(input.baseline().sqrt(), Binary256.sqrt(actual), "sqrt input=" + input);
                         assertEquals(input, raw(actual), "square root receiver must remain unchanged");
                     }
                 }
@@ -1825,8 +1825,8 @@ class Binary256CompatibilityTest {
                 assertFailure(NullPointerException.class, () -> calculate(expected, null, operation),
                         () -> calculate(actual, null, operation), operation + " null receiver=" + bits);
             }
-            assertFailure(NullPointerException.class, () -> expected.fma(null, Binary256Baseline.ZERO), () -> actual.fma(null, Binary256.ZERO), "FMA null multiplier");
-            assertFailure(NullPointerException.class, () -> expected.fma(Binary256Baseline.ZERO, null), () -> actual.fma(Binary256.ZERO, null), "FMA null addend");
+            assertFailure(NullPointerException.class, () -> expected.fma(null, Binary256Baseline.ZERO), () -> Binary256.fma(actual, null, Binary256.ZERO), "FMA null multiplier");
+            assertFailure(NullPointerException.class, () -> expected.fma(Binary256Baseline.ZERO, null), () -> Binary256.fma(actual, Binary256.ZERO, null), "FMA null addend");
             assertFailure(NullPointerException.class, () -> expected.compareTo(null), () -> actual.compareTo(null), "compareTo null");
             assertFailure(NullPointerException.class, () -> expected.compareNumerically(null), () -> actual.compareNumerically(null), "compareNumerically null");
         }

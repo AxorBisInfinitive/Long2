@@ -3,6 +3,7 @@ package com.inf.long2.binaries;
 import java.util.Objects;
 
 import com.inf.long2.Binary;
+import com.inf.long2.BinaryMath;
 import com.inf.long2.Int;
 import com.inf.long2.binaries.binary256.Binary256Arithmetic;
 import com.inf.long2.binaries.binary256.Binary256Decimal;
@@ -30,7 +31,7 @@ import static com.inf.long2.binaries.binary256.Binary256Rounding.shiftedWord;
  * 正常数补入隐含位后具有 237 位精度，指数偏置为 262143。
  * 加减与 FMA 的精确对齐均使用有界工作区，FMA 对齐幅值最多使用 12 个 long，不随指数差扩张。
  */
-public final class Binary256 implements Binary<Binary256> {
+public final class Binary256 implements Binary<Binary256>, BinaryMath {
     private static final long INFINITY_TOP = 0x7fff_f000_0000_0000L;
     private static final long NAN_TOP = 0x7fff_f800_0000_0000L;
 
@@ -533,16 +534,18 @@ public final class Binary256 implements Binary<Binary256> {
         return isNaN() ? NaN : signBit() ? new Binary256(l0 & Long.MAX_VALUE, l1, l2, l3) : this;
     }
 
-    @Override
-    public Binary256 fma(Binary256 multiplier, Binary256 addend) {
+    /** @see BinaryMath#fma(BinaryMath, BinaryMath, BinaryMath) */
+    public static Binary256 fma(Binary256 multiplicand, Binary256 multiplier, Binary256 addend) {
+        Objects.requireNonNull(multiplicand);
         Objects.requireNonNull(multiplier);
         Objects.requireNonNull(addend);
-        return Binary256Arithmetic.fma(this, multiplier, addend);
+        return Binary256Arithmetic.fma(multiplicand, multiplier, addend);
     }
 
-    @Override
-    public Binary256 sqrt() {
-        return Binary256Arithmetic.sqrt(this);
+    /** @see BinaryMath#sqrt(BinaryMath) */
+    public static Binary256 sqrt(Binary256 value) {
+        Objects.requireNonNull(value);
+        return Binary256Arithmetic.sqrt(value);
     }
 
     @Override

@@ -67,7 +67,7 @@ class Binary640RemainderTest {
         Binary640 half = Binary640.of(1.5).scalb(-1);
         for (int quotient : new int[] {0, 1, 2, 3, 4, 5}) {
             Binary640 divisor = Binary640.of(1.5);
-            Binary640 dividend = Binary640.of(quotient).fma(divisor, half);
+            Binary640 dividend = Binary640.fma(Binary640.of(quotient), divisor, half);
             checkBothRemainders(dividend, divisor);
             checkBothRemainders(dividend.negate(), divisor);
         }

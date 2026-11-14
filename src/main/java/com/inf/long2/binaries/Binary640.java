@@ -3,6 +3,7 @@ package com.inf.long2.binaries;
 import java.util.Objects;
 
 import com.inf.long2.Binary;
+import com.inf.long2.BinaryMath;
 import com.inf.long2.Int;
 import com.inf.long2.binaries.binary640.Binary640Arithmetic;
 import com.inf.long2.binaries.binary640.Binary640Decimal;
@@ -22,7 +23,7 @@ import static com.inf.long2.binaries.binary640.Binary640Encoding.zero;
  * 640 位二进制浮点数，原始编码按大端序保存在十个 long 中。
  * 符号占一位，偏置指数占 24 位，小数字段占 615 位，正常数精度为 616 位。
  */
-public final class Binary640 implements Binary<Binary640> {
+public final class Binary640 implements Binary<Binary640>, BinaryMath {
     private static final long INFINITY_TOP = 0x7fff_ff80_0000_0000L;
     private static final long NAN_TOP = 0x7fff_ffc0_0000_0000L;
 
@@ -360,16 +361,18 @@ public final class Binary640 implements Binary<Binary640> {
         return isNaN() ? NaN : signBit() ? negate() : this;
     }
 
-    @Override
-    public Binary640 fma(Binary640 multiplier, Binary640 addend) {
+    /** @see BinaryMath#fma(BinaryMath, BinaryMath, BinaryMath) */
+    public static Binary640 fma(Binary640 multiplicand, Binary640 multiplier, Binary640 addend) {
+        Objects.requireNonNull(multiplicand);
         Objects.requireNonNull(multiplier);
         Objects.requireNonNull(addend);
-        return Binary640Arithmetic.fma(this, multiplier, addend);
+        return Binary640Arithmetic.fma(multiplicand, multiplier, addend);
     }
 
-    @Override
-    public Binary640 sqrt() {
-        return Binary640Arithmetic.sqrt(this);
+    /** @see BinaryMath#sqrt(BinaryMath) */
+    public static Binary640 sqrt(Binary640 value) {
+        Objects.requireNonNull(value);
+        return Binary640Arithmetic.sqrt(value);
     }
 
     @Override

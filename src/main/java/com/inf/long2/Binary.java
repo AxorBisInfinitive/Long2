@@ -345,15 +345,6 @@ public interface Binary<T extends Binary<T>> extends Comparable<T> {
     T abs();
 
     /**
-     * 精确计算 {@code this * multiplier + addend} 后仅舍入一次，不等价于先调用 multiply 再调用 add。
-     * 零乘无穷或无穷乘积加上异号无穷时返回 NaN，零结果按精确乘积与加数的浮点加法规则确定符号。
-     */
-    T fma(T multiplier, T addend);
-
-    /** 返回正确舍入的非负平方根，负的非零数返回 NaN，负零保留负号，正无穷返回正无穷。 */
-    T sqrt();
-
-    /**
      * 精确缩放为 {@code this * 2^scaleFactor} 后直接舍入，指数不取模，全部 long 参数均有效。
      * 保留零和无穷的符号；有限非零结果上溢、下溢或舍入为零时按目标格式处理。
      * 内部指数加减不得因 long 溢出而改变结果。

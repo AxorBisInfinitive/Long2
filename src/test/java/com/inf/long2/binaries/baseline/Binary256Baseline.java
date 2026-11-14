@@ -497,7 +497,6 @@ public final class Binary256Baseline implements Binary<Binary256Baseline> {
         return isNaN() ? NaN : signBit() ? new Binary256Baseline(l0 & Long.MAX_VALUE, l1, l2, l3) : this;
     }
 
-    @Override
     public Binary256Baseline fma(Binary256Baseline multiplier, Binary256Baseline addend) {
         Objects.requireNonNull(multiplier);
         Objects.requireNonNull(addend);
@@ -518,7 +517,6 @@ public final class Binary256Baseline implements Binary<Binary256Baseline> {
                 addend.signBit(), addend.magnitude(), addend.scaleExponent());
     }
 
-    @Override
     public Binary256Baseline sqrt() {
         if (isNaN() || (signBit() && !isZero())) {
             return NaN;

@@ -53,8 +53,9 @@ class Binary640ContractTest {
             assertThrows(NullPointerException.class, () -> value.divide(null));
             assertThrows(NullPointerException.class, () -> value.remainder(null));
             assertThrows(NullPointerException.class, () -> value.ieeeRemainder(null));
-            assertThrows(NullPointerException.class, () -> value.fma(null, Binary640.NaN));
-            assertThrows(NullPointerException.class, () -> value.fma(Binary640.NaN, null));
+            assertThrows(NullPointerException.class, () -> Binary640.fma(null, value, Binary640.NaN));
+            assertThrows(NullPointerException.class, () -> Binary640.fma(value, null, Binary640.NaN));
+            assertThrows(NullPointerException.class, () -> Binary640.fma(value, Binary640.NaN, null));
             assertThrows(NullPointerException.class, () -> value.compareTo(null));
             assertThrows(NullPointerException.class, () -> value.compareNumerically(null));
         }
@@ -68,14 +69,14 @@ class Binary640ContractTest {
     void keepsIndependentResultsAcrossAliasedAndConcurrentCalls() throws Exception {
         Binary640 a = Binary640.ONE.nextUp(), b = Binary640.of(3L);
         byte[] beforeA = a.toBytes(), beforeB = b.toBytes();
-        Binary640 product = a.multiply(b), fused = a.fma(a, a), root = b.sqrt();
+        Binary640 product = a.multiply(b), fused = Binary640.fma(a, a, a), root = Binary640.sqrt(b);
         try (var executor = Executors.newFixedThreadPool(4)) {
             var tasks = new ArrayList<Callable<Void>>();
             for (int i = 0; i < 80; i++) {
                 tasks.add(() -> {
                     assertRaw(product, a.multiply(b));
-                    assertRaw(fused, a.fma(a, a));
-                    assertRaw(root, b.sqrt());
+                    assertRaw(fused, Binary640.fma(a, a, a));
+                    assertRaw(root, Binary640.sqrt(b));
                     return null;
                 });
             }
