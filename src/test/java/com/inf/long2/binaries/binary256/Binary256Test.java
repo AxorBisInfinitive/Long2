@@ -1,4 +1,4 @@
-package com.inf.long2.binaries;
+package com.inf.long2.binaries.binary256;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import com.inf.long2.Binary;
 import com.inf.long2.Int;
+import com.inf.long2.binaries.Binary256;
 import com.inf.long2.ints.Int256;
 
 class Binary256Test {
@@ -58,7 +59,9 @@ class Binary256Test {
                 Binary256Reference.Dyadic expected = Binary256Reference.decode(value);
                 BigInteger magnitude = BigInteger.ZERO;
                 for (int j = 0; j < 4; j++) {
-                    magnitude = magnitude.shiftLeft(64).or(UnsignedWordsTest.integer(new long[] {value.getSignificandLong(j)}));
+                    long word = value.getSignificandLong(j);
+                    BigInteger unsigned = BigInteger.valueOf(word & Long.MAX_VALUE);
+                    magnitude = magnitude.shiftLeft(64).or(word < 0 ? unsigned.setBit(63) : unsigned);
                 }
                 assertEquals(expected.magnitude(), magnitude);
                 assertEquals(expected.scale(), value.scaleExponent());

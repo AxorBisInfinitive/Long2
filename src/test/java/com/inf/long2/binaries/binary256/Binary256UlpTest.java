@@ -1,4 +1,4 @@
-package com.inf.long2.binaries;
+package com.inf.long2.binaries.binary256;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -12,6 +12,7 @@ import java.util.Random;
 import org.junit.jupiter.api.Test;
 
 import com.inf.long2.Binary;
+import com.inf.long2.binaries.Binary256;
 
 class Binary256UlpTest {
     private static Binary256 exactPower(int exponent) {

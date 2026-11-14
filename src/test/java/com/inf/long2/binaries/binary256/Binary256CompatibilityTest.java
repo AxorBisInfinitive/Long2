@@ -1,6 +1,6 @@
-package com.inf.long2.binaries;
+package com.inf.long2.binaries.binary256;
 
-import static com.inf.long2.binaries.Binary256CompatibilityFixtures.*;
+import static com.inf.long2.binaries.binary256.Binary256CompatibilityFixtures.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -15,7 +15,8 @@ import org.junit.jupiter.api.function.Executable;
 
 import com.inf.long2.Binary;
 import com.inf.long2.Int;
-import com.inf.long2.binaries.baseline.Binary256Baseline;
+import com.inf.long2.binaries.Binary256;
+import com.inf.long2.binaries.binary256.baseline.Binary256Baseline;
 import com.inf.long2.ints.Int256;
 
 /** 比较冻结基线的完整输出编码，NaN 的符号和 payload 差异也必须使测试失败。 */

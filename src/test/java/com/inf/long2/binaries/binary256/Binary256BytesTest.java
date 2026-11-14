@@ -1,4 +1,4 @@
-package com.inf.long2.binaries;
+package com.inf.long2.binaries.binary256;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -15,6 +15,7 @@ import java.util.Random;
 import org.junit.jupiter.api.Test;
 
 import com.inf.long2.Binary;
+import com.inf.long2.binaries.Binary256;
 
 class Binary256BytesTest {
     @Test

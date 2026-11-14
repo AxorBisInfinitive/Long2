@@ -1,4 +1,4 @@
-package com.inf.long2.binaries.baseline;
+package com.inf.long2.binaries.binary256.baseline;
 
 import java.util.Objects;
 

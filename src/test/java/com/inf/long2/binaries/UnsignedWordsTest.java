@@ -11,6 +11,7 @@ import java.util.Random;
 
 import org.junit.jupiter.api.Test;
 
+import com.inf.long2.binaries.binary256.Binary256CompatibilityFixtures;
 import com.inf.long2.binaries.internal.UnsignedWords;
 
 class UnsignedWordsTest {

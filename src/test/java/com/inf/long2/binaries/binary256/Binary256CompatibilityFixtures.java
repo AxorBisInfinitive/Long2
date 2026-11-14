@@ -1,4 +1,4 @@
-package com.inf.long2.binaries;
+package com.inf.long2.binaries.binary256;
 
 import java.lang.reflect.Proxy;
 import java.math.BigInteger;
@@ -9,10 +9,11 @@ import java.util.function.IntConsumer;
 
 import com.inf.long2.Binary;
 import com.inf.long2.Int;
-import com.inf.long2.binaries.baseline.Binary256Baseline;
+import com.inf.long2.binaries.Binary256;
+import com.inf.long2.binaries.binary256.baseline.Binary256Baseline;
 
 /** 从原始位生成输入，不通过待验证的算术或转换路径生成用例。 */
-final class Binary256CompatibilityFixtures {
+public final class Binary256CompatibilityFixtures {
     static final BigInteger ONE = BigInteger.ONE;
     static final BigInteger FRACTION_MASK = ONE.shiftLeft(236).subtract(ONE);
     static final Bits ZERO = new Bits(0, 0, 0, 0);
@@ -95,7 +96,7 @@ final class Binary256CompatibilityFixtures {
     }
 
     /** 构造可由 237 位源有效数字精确产生的平方根边界，低零位保证缩放时不先舍入。 */
-    static List<BigInteger> squareRootRoundingBoundaries() {
+    public static List<BigInteger> squareRootRoundingBoundaries() {
         BigInteger unit = ONE.shiftLeft(236), maximum = ONE.shiftLeft(237).subtract(ONE);
         List<BigInteger> values = new ArrayList<>();
         values.add(unit.multiply(unit));

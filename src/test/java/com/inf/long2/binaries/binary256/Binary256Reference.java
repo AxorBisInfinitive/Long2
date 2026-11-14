@@ -1,6 +1,8 @@
-package com.inf.long2.binaries;
+package com.inf.long2.binaries.binary256;
 
 import java.math.BigInteger;
+
+import com.inf.long2.binaries.Binary256;
 
 /** 用独立的任意精度整数商余数计算预期编码，不调用生产代码的舍入或有效数字分解。 */
 final class Binary256Reference {
