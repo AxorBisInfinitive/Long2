@@ -148,7 +148,7 @@ final class Binary640Decimal {
         } else {
             denominator = powerOfFive(Math.toIntExact(-scale));
         }
-        return Binary640Math.roundRational(negative, numerator, denominator, scale);
+        return Binary640Rounding.roundRational(negative, numerator, denominator, scale);
     }
 
     private static NumberFormatException invalid(String text) {
@@ -201,7 +201,7 @@ final class Binary640Decimal {
             return scientific ? scientificFixed(negative, "0", fractionDigits, 0)
                     : plainFixed(negative, "0", 0, fractionDigits);
         }
-        long[] magnitude = Binary640Math.magnitude(value);
+        long[] magnitude = value.magnitude();
         int trailing = 0;
         while (magnitude[trailing / 64] == 0) {
             trailing += 64;
@@ -385,7 +385,7 @@ final class Binary640Decimal {
      * 最大有限值的上侧使用虚拟后继 2^(emax+1)，恰好覆盖舍入到无穷的边界。
      */
     private static Decimal shortest(Binary640 value) {
-        long[] magnitude = Binary640Math.magnitude(value);
+        long[] magnitude = value.magnitude();
         boolean inclusive = (magnitude[0] & 1) == 0;
         int bits = UnsignedWords.bitLength(magnitude);
         long scale = value.scaleExponent();

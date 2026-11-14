@@ -1,132 +1,17 @@
 package com.inf.long2.binaries;
 
-import java.util.Arrays;
+import static com.inf.long2.binaries.Binary640.raw;
+import static com.inf.long2.binaries.Binary640Rounding.packRounded;
+import static com.inf.long2.binaries.Binary640Rounding.productWithTail;
+import static com.inf.long2.binaries.Binary640Rounding.roundDyadic;
+import static com.inf.long2.binaries.Binary640Rounding.roundOwnedDyadic;
+import static com.inf.long2.binaries.Binary640Rounding.roundProduct;
+import static com.inf.long2.binaries.Binary640Rounding.roundRational;
+import static com.inf.long2.binaries.Binary640Rounding.shiftedWord;
 
-/** 无符号幅值低组在前，所有原地写入只作用于本次调用独占的数组。 */
-final class Binary640Math {
-    private Binary640Math() {
-    }
-
-    static long[] magnitude(Binary640 value) {
-        long[] words = new long[10];
-        for (int i = 0; i < words.length; i++) {
-            words[i] = value.getSignificandLong(9 - i);
-        }
-        return UnsignedWords.trim(words);
-    }
-
-    static Binary640 raw(long[] lowWords) {
-        return Binary640.fromRawBits(lowWords[9], lowWords[8], lowWords[7], lowWords[6], lowWords[5],
-                lowWords[4], lowWords[3], lowWords[2], lowWords[1], lowWords[0]);
-    }
-
-    /** 将一个源分组按位偏移并入独占窗口，窗口外的位丢弃。 */
-    static void insert(long[] target, long word, long offset) {
-        if (offset < 0) {
-            if (offset > -64) {
-                target[0] |= word >>> (int) -offset;
-            }
-            return;
-        }
-        long group = offset / 64;
-        int bits = (int) (offset & 63);
-        if (group < target.length) {
-            target[(int) group] |= word << bits;
-        }
-        if (bits != 0 && group + 1 < target.length) {
-            target[(int) group + 1] |= word >>> (64 - bits);
-        }
-    }
-
-    /** distance 为正时右移，为负时左移，范围外的源分组补零。 */
-    static long shiftedWord(long[] magnitude, int index, int distance) {
-        int group = index + (distance >> 6), bits = distance & 63;
-        long low = group < 0 ? 0 : UnsignedWords.word(magnitude, group);
-        if (bits == 0) {
-            return low;
-        }
-        long high = group < -1 ? 0 : UnsignedWords.word(magnitude, group + 1);
-        return (low >>> bits) | (high << (64 - bits));
-    }
-
-    static Binary640 roundDyadic(boolean negative, long[] magnitude, long scale) {
-        int length = UnsignedWords.bitLength(magnitude);
-        if (length == 0) {
-            return Binary640.zero(negative);
-        }
-        long exponent = scale + length - 1;
-        if (exponent > Binary640.FORMAT.maxExponent()) {
-            return Binary640.infinity(negative);
-        }
-        if (exponent < Binary640.QMIN - 1L) {
-            return Binary640.zero(negative);
-        }
-        long quantum = Math.max(exponent - 615, Binary640.QMIN);
-        int discarded = Math.toIntExact(quantum - scale);
-        long[] kept = new long[10];
-        for (int i = 0; i < kept.length; i++) {
-            kept[i] = shiftedWord(magnitude, i, discarded);
-        }
-        boolean increment = discarded > 0 && UnsignedWords.bit(magnitude, discarded - 1)
-                && ((kept[0] & 1) != 0 || UnsignedWords.anyLow(magnitude, discarded - 1));
-        return packRounded(negative, kept, quantum, increment);
-    }
-
-    static Binary640 roundRational(boolean negative, long[] numerator, long[] denominator, long scale) {
-        if (UnsignedWords.bitLength(numerator) == 0) {
-            return Binary640.zero(negative);
-        }
-        int ratioExponent = UnsignedWords.bitLength(numerator) - UnsignedWords.bitLength(denominator);
-        int comparison = ratioExponent >= 0
-                ? UnsignedWords.compareShifted(numerator, denominator, ratioExponent)
-                : -UnsignedWords.compareShifted(denominator, numerator, -ratioExponent);
-        long exponent = scale + ratioExponent - (comparison < 0 ? 1 : 0);
-        if (exponent > Binary640.FORMAT.maxExponent()) {
-            return Binary640.infinity(negative);
-        }
-        if (exponent < Binary640.QMIN - 1L) {
-            return Binary640.zero(negative);
-        }
-        long quantum = Math.max(exponent - 615, Binary640.QMIN);
-        long shift = scale - quantum;
-        if (shift >= 0) {
-            numerator = UnsignedWords.left(numerator, Math.toIntExact(shift));
-        } else {
-            denominator = UnsignedWords.left(denominator, Math.toIntExact(-shift));
-        }
-        UnsignedWords.Division division = UnsignedWords.divide(numerator, denominator);
-        int half = -UnsignedWords.compareShifted(denominator, division.remainder(), 1);
-        return packRounded(negative, Arrays.copyOf(division.quotient(), 10), quantum,
-                half > 0 || half == 0 && UnsignedWords.bit(division.quotient(), 0));
-    }
-
-    /** kept 独占且至少十组，至多 616 位，额外高组为零；舍入与归一化在最终位权完成。 */
-    private static Binary640 packRounded(boolean negative, long[] kept, long quantum, boolean increment) {
-        if (increment) {
-            for (int i = 0; i < kept.length; i++) {
-                if (++kept[i] != 0) {
-                    break;
-                }
-            }
-        }
-        if ((kept[9] & (Binary640.HIDDEN_BIT << 1)) != 0) {
-            for (int i = 0; i < 9; i++) {
-                kept[i] = (kept[i] >>> 1) | (kept[i + 1] << 63);
-            }
-            kept[9] >>>= 1;
-            quantum++;
-        }
-        int length = UnsignedWords.bitLength(kept);
-        if (length == 0) {
-            return Binary640.zero(negative);
-        }
-        long exponent = quantum + length - 1;
-        if (exponent > Binary640.FORMAT.maxExponent()) {
-            return Binary640.infinity(negative);
-        }
-        long encoded = exponent < Binary640.FORMAT.minExponent() ? 0 : exponent + Binary640.BIAS;
-        kept[9] = (negative ? Long.MIN_VALUE : 0) | (encoded << 39) | (kept[9] & Binary640.FRACTION_MASK);
-        return raw(kept);
+/** Binary640 算术。无符号幅值低组在前，原地操作只修改本次调用独占的数组。 */
+final class Binary640Arithmetic {
+    private Binary640Arithmetic() {
     }
 
     private static long exponent(long[] magnitude, long scale) {
@@ -320,37 +205,6 @@ final class Binary640Math {
         return roundOwnedDyadic(highNegative, result, scale);
     }
 
-    /** 独占工作区至少十组，先读取全部舍入信息，再按安全方向原地整理。 */
-    private static Binary640 roundOwnedDyadic(boolean negative, long[] magnitude, long scale) {
-        int length = UnsignedWords.bitLength(magnitude);
-        if (length == 0) {
-            return Binary640.zero(negative);
-        }
-        long exponent = scale + length - 1;
-        if (exponent > Binary640.FORMAT.maxExponent()) {
-            return Binary640.infinity(negative);
-        }
-        if (exponent < Binary640.QMIN - 1L) {
-            return Binary640.zero(negative);
-        }
-        long quantum = Math.max(exponent - 615, Binary640.QMIN);
-        int discarded = Math.toIntExact(quantum - scale);
-        boolean increment = discarded > 0 && UnsignedWords.bit(magnitude, discarded - 1)
-                && (UnsignedWords.bit(magnitude, discarded) || UnsignedWords.anyLow(magnitude, discarded - 1));
-        if (discarded > 0) {
-            for (int i = 0; i < 10; i++) {
-                magnitude[i] = shiftedWord(magnitude, i, discarded);
-            }
-        } else if (discarded < 0) {
-            for (int i = 9; i >= 0; i--) {
-                magnitude[i] = shiftedWord(magnitude, i, discarded);
-            }
-        }
-        // 原高组已参与移位，必须在全部目标组写完后清除，避免被 packRounded 重新视作有效位。
-        Arrays.fill(magnitude, 10, magnitude.length, 0);
-        return packRounded(negative, magnitude, quantum, increment);
-    }
-
     /** 有限非零幅值，最高组已经清除编码字段并补入正常数隐含位。 */
     private static int finiteLength(Binary640 value, long top) {
         if (top != 0) {
@@ -429,51 +283,6 @@ final class Binary640Math {
     }
 
     /** 对齐范围已由调用方证明，a 是独占乘积，结果只在最终位权上舍入。 */
-    private static Binary640 sum(boolean aneg, long[] a, long as, long ae,
-            boolean bneg, long[] b, long bs, long be) {
-        long scale = Math.min(as, bs);
-        int ashift = Math.toIntExact(as - scale), bshift = Math.toIntExact(bs - scale);
-        boolean adding = aneg == bneg;
-        long span = Math.max(ae, be) - scale + 1;
-        int count = (int) ((span + (adding ? 1 : 0) + 63) / 64);
-        int comparison = 1;
-        if (!adding) {
-            comparison = ae == be ? compareAligned(a, ashift, b, bshift, count) : Long.compare(ae, be);
-            if (comparison == 0) {
-                return Binary640.ZERO;
-            }
-        }
-        // a 为本次 FMA 独占的乘积，未移位时低组写入不会覆盖后续读取。
-        int capacity = Math.max(10, count);
-        long[] result = ashift == 0 && a.length == capacity ? a : new long[capacity];
-        long carry = 0;
-        for (int i = 0; i < count; i++) {
-            long av = shiftedWord(a, i, -ashift), bv = shiftedWord(b, i, -bshift);
-            if (adding) {
-                long partial = av + bv;
-                long next = partial + carry;
-                carry = Long.compareUnsigned(partial, av) < 0 || Long.compareUnsigned(next, partial) < 0 ? 1 : 0;
-                result[i] = next;
-            } else {
-                long greater = comparison > 0 ? av : bv, smaller = comparison > 0 ? bv : av;
-                long partial = greater - smaller;
-                result[i] = partial - carry;
-                carry = Long.compareUnsigned(greater, smaller) < 0 || Long.compareUnsigned(partial, carry) < 0 ? 1 : 0;
-            }
-        }
-        return roundOwnedDyadic(comparison > 0 ? aneg : bneg, result, scale);
-    }
-
-    private static int compareAligned(long[] a, int ashift, long[] b, int bshift, int capacity) {
-        for (int i = capacity - 1; i >= 0; i--) {
-            int comparison = Long.compareUnsigned(shiftedWord(a, i, -ashift), shiftedWord(b, i, -bshift));
-            if (comparison != 0) {
-                return comparison;
-            }
-        }
-        return 0;
-    }
-
     static Binary640 multiply(Binary640 a, Binary640 b) {
         if (a.isNaN() || b.isNaN() || a.isZero() && b.isInfinite() || a.isInfinite() && b.isZero()) {
             return Binary640.NaN;
@@ -506,65 +315,6 @@ final class Binary640Math {
         return roundProduct(negative, product, scale);
     }
 
-    /**
-     * product 是至少十组的独占完整乘积。先读取全部舍入信息，再整理低十组。
-     * 正常结果已知保留 616 位；低端结果在 QMIN 位权上的整数直接对应零、次正规或最低正常数编码。
-     * 高组不再参与结果编码，无须清零或重新扫描位长。
-     */
-    private static Binary640 roundProduct(boolean negative, long[] product, long scale) {
-        int length = UnsignedWords.bitLength(product);
-        if (length == 0) {
-            return Binary640.zero(negative);
-        }
-        long exponent = scale + length - 1;
-        if (exponent > Binary640.FORMAT.maxExponent()) {
-            return Binary640.infinity(negative);
-        }
-        if (exponent < Binary640.QMIN - 1L) {
-            return Binary640.zero(negative);
-        }
-        boolean lowRange = exponent <= Binary640.FORMAT.minExponent();
-        long quantum = lowRange ? Binary640.QMIN : exponent - 615;
-        int discarded = Math.toIntExact(quantum - scale);
-        boolean increment = discarded > 0 && UnsignedWords.bit(product, discarded - 1)
-                && (UnsignedWords.bit(product, discarded) || UnsignedWords.anyLow(product, discarded - 1));
-        if (discarded > 0) {
-            for (int i = 0; i < 10; i++) {
-                product[i] = shiftedWord(product, i, discarded);
-            }
-        } else if (discarded < 0) {
-            for (int i = 9; i >= 0; i--) {
-                product[i] = shiftedWord(product, i, discarded);
-            }
-        }
-        if (increment) {
-            for (int i = 0; i < 10; i++) {
-                if (++product[i] != 0) {
-                    break;
-                }
-            }
-        }
-        if (lowRange) {
-            // 舍入整数至多为 2^616，该端点直接编码为第二个正常 binade 的起点。
-            product[9] |= negative ? Long.MIN_VALUE : 0;
-            return raw(product);
-        }
-        if ((product[9] & (Binary640.HIDDEN_BIT << 1)) != 0) {
-            for (int i = 0; i < 9; i++) {
-                product[i] = (product[i] >>> 1) | (product[i + 1] << 63);
-            }
-            product[9] >>>= 1;
-            exponent++;
-            if (exponent > Binary640.FORMAT.maxExponent()) {
-                return Binary640.infinity(negative);
-            }
-        }
-        product[9] = (negative ? Long.MIN_VALUE : 0) | ((exponent + Binary640.BIAS) << 39)
-                | (product[9] & Binary640.FRACTION_MASK);
-        return raw(product);
-    }
-
-    /** 有限非零幅值至多有九个低零组，最高组不得将编码字段当作有效位。 */
     private static int lowZeroGroups(Binary640 value) {
         int groups = 0;
         while (groups < 9 && value.getRawLong(9 - groups) == 0) {
@@ -1326,6 +1076,110 @@ final class Binary640Math {
         }
     }
 
+    static Binary640 fma(Binary640 a, Binary640 b, Binary640 c) {
+        if (a.isNaN() || b.isNaN() || c.isNaN() || a.isZero() && b.isInfinite() || a.isInfinite() && b.isZero()) {
+            return Binary640.NaN;
+        }
+        boolean negative = a.signBit() ^ b.signBit();
+        if (a.isInfinite() || b.isInfinite()) {
+            return c.isInfinite() && negative != c.signBit() ? Binary640.NaN : Binary640.infinity(negative);
+        }
+        if (c.isInfinite()) {
+            return c;
+        }
+        if (a.isZero() || b.isZero()) {
+            return c.isZero() ? Binary640.zero(negative && c.signBit()) : c;
+        }
+        boolean addendZero = c.isZero();
+        long ce = 0;
+        if (!addendZero) {
+            ce = finiteExponent(c);
+            long minimumProductExponent = finiteExponent(a) + finiteExponent(b);
+            // 精确乘积的最高指数至多比两侧指数和大一。
+            if (ce - minimumProductExponent >= 619) {
+                return c;
+            }
+        }
+        long atop = a.getSignificandLong(0), btop = b.getSignificandLong(0);
+        int az = lowZeroGroups(a), bz = lowZeroGroups(b);
+        long scale = a.scaleExponent() + b.scaleExponent() + 64L * (az + bz);
+        long[] product;
+        if ((az | bz) != 0) {
+            product = multiplyTrimmed(a, atop, az, b, btop, bz);
+        } else {
+            product = new long[20];
+            long carry = multiplyLowColumns(a, atop, b, btop, product);
+            multiplyHighColumns(a, atop, b, btop, product, carry);
+        }
+        if (addendZero) {
+            return roundDyadic(negative, product, scale);
+        }
+        long[] cm = c.magnitude();
+        long pe = exponent(product, scale);
+        if (pe >= Binary640.FORMAT.maxExponent() + 2L) {
+            return Binary640.infinity(negative);
+        }
+        long difference = pe - ce;
+        if (difference <= -618) {
+            return c;
+        }
+        if (difference >= 1233) {
+            return productWithTail(negative, product, scale, pe, negative == c.signBit());
+        }
+        return sum(negative, product, scale, pe, c.signBit(), cm, c.scaleExponent(), ce);
+    }
+
+    /** 有限非零数的实际最高位指数，次正规数用有效位长计算。 */
+    private static long finiteExponent(Binary640 value) {
+        long scale = value.scaleExponent();
+        return scale + finiteLength(value, value.getSignificandLong(0)) - 1;
+    }
+
+    private static Binary640 sum(boolean aneg, long[] a, long as, long ae,
+            boolean bneg, long[] b, long bs, long be) {
+        long scale = Math.min(as, bs);
+        int ashift = Math.toIntExact(as - scale), bshift = Math.toIntExact(bs - scale);
+        boolean adding = aneg == bneg;
+        long span = Math.max(ae, be) - scale + 1;
+        int count = (int) ((span + (adding ? 1 : 0) + 63) / 64);
+        int comparison = 1;
+        if (!adding) {
+            comparison = ae == be ? compareAligned(a, ashift, b, bshift, count) : Long.compare(ae, be);
+            if (comparison == 0) {
+                return Binary640.ZERO;
+            }
+        }
+        // a 为本次 FMA 独占的乘积，未移位时低组写入不会覆盖后续读取。
+        int capacity = Math.max(10, count);
+        long[] result = ashift == 0 && a.length == capacity ? a : new long[capacity];
+        long carry = 0;
+        for (int i = 0; i < count; i++) {
+            long av = shiftedWord(a, i, -ashift), bv = shiftedWord(b, i, -bshift);
+            if (adding) {
+                long partial = av + bv;
+                long next = partial + carry;
+                carry = Long.compareUnsigned(partial, av) < 0 || Long.compareUnsigned(next, partial) < 0 ? 1 : 0;
+                result[i] = next;
+            } else {
+                long greater = comparison > 0 ? av : bv, smaller = comparison > 0 ? bv : av;
+                long partial = greater - smaller;
+                result[i] = partial - carry;
+                carry = Long.compareUnsigned(greater, smaller) < 0 || Long.compareUnsigned(partial, carry) < 0 ? 1 : 0;
+            }
+        }
+        return roundOwnedDyadic(comparison > 0 ? aneg : bneg, result, scale);
+    }
+
+    private static int compareAligned(long[] a, int ashift, long[] b, int bshift, int capacity) {
+        for (int i = capacity - 1; i >= 0; i--) {
+            int comparison = Long.compareUnsigned(shiftedWord(a, i, -ashift), shiftedWord(b, i, -bshift));
+            if (comparison != 0) {
+                return comparison;
+            }
+        }
+        return 0;
+    }
+
     static Binary640 divide(Binary640 a, Binary640 b) {
         if (a.isNaN() || b.isNaN() || a.isZero() && b.isZero() || a.isInfinite() && b.isInfinite()) {
             return Binary640.NaN;
@@ -1337,7 +1191,7 @@ final class Binary640Math {
         if (a.isZero() || b.isInfinite()) {
             return Binary640.zero(negative);
         }
-        long[] numerator = magnitude(a), denominator = magnitude(b);
+        long[] numerator = a.magnitude(), denominator = b.magnitude();
         int numeratorZeros = trailingZeros(numerator), denominatorZeros = trailingZeros(denominator);
         // 两侧移除的位均为零，各自位权精确增加相应位数。
         long scale = a.scaleExponent() - b.scaleExponent() + numeratorZeros - denominatorZeros;
@@ -1380,7 +1234,7 @@ final class Binary640Math {
         if (nearest ? atMostHalf(a, b) : compareFiniteMagnitude(a, b) < 0) {
             return a;
         }
-        long[] am = magnitude(a), bm = magnitude(b);
+        long[] am = a.magnitude(), bm = b.magnitude();
         long as = a.scaleExponent(), bs = b.scaleExponent();
         long difference = as - bs, scale;
         long[] remainder;
@@ -1473,81 +1327,6 @@ final class Binary640Math {
         return true;
     }
 
-    static Binary640 fma(Binary640 a, Binary640 b, Binary640 c) {
-        if (a.isNaN() || b.isNaN() || c.isNaN() || a.isZero() && b.isInfinite() || a.isInfinite() && b.isZero()) {
-            return Binary640.NaN;
-        }
-        boolean negative = a.signBit() ^ b.signBit();
-        if (a.isInfinite() || b.isInfinite()) {
-            return c.isInfinite() && negative != c.signBit() ? Binary640.NaN : Binary640.infinity(negative);
-        }
-        if (c.isInfinite()) {
-            return c;
-        }
-        if (a.isZero() || b.isZero()) {
-            return c.isZero() ? Binary640.zero(negative && c.signBit()) : c;
-        }
-        boolean addendZero = c.isZero();
-        long ce = 0;
-        if (!addendZero) {
-            ce = finiteExponent(c);
-            long minimumProductExponent = finiteExponent(a) + finiteExponent(b);
-            // 精确乘积的最高指数至多比两侧指数和大一。
-            if (ce - minimumProductExponent >= 619) {
-                return c;
-            }
-        }
-        long atop = a.getSignificandLong(0), btop = b.getSignificandLong(0);
-        int az = lowZeroGroups(a), bz = lowZeroGroups(b);
-        long scale = a.scaleExponent() + b.scaleExponent() + 64L * (az + bz);
-        long[] product;
-        if ((az | bz) != 0) {
-            product = multiplyTrimmed(a, atop, az, b, btop, bz);
-        } else {
-            product = new long[20];
-            long carry = multiplyLowColumns(a, atop, b, btop, product);
-            multiplyHighColumns(a, atop, b, btop, product, carry);
-        }
-        if (addendZero) {
-            return roundDyadic(negative, product, scale);
-        }
-        long[] cm = magnitude(c);
-        long pe = exponent(product, scale);
-        if (pe >= Binary640.FORMAT.maxExponent() + 2L) {
-            return Binary640.infinity(negative);
-        }
-        long difference = pe - ce;
-        if (difference <= -618) {
-            return c;
-        }
-        if (difference >= 1233) {
-            return productWithTail(negative, product, scale, pe, negative == c.signBit());
-        }
-        return sum(negative, product, scale, pe, c.signBit(), cm, c.scaleExponent(), ce);
-    }
-
-    /** 有限非零数的实际最高位指数，次正规数用有效位长计算。 */
-    private static long finiteExponent(Binary640 value) {
-        long scale = value.scaleExponent();
-        return scale + finiteLength(value, value.getSignificandLong(0)) - 1;
-    }
-
-    /** 非零尾项小于乘积网格间距，只在精确中点决定向哪一侧舍入。 */
-    private static Binary640 productWithTail(boolean negative, long[] product, long scale, long exponent, boolean increases) {
-        if (exponent > Binary640.FORMAT.maxExponent()) {
-            return Binary640.infinity(negative);
-        }
-        int discarded = UnsignedWords.bitLength(product) - 616;
-        if (discarded > 0 && UnsignedWords.bit(product, discarded - 1) && !UnsignedWords.anyLow(product, discarded - 1)) {
-            long[] kept = new long[10];
-            for (int i = 0; i < kept.length; i++) {
-                kept[i] = shiftedWord(product, i, discarded);
-            }
-            return packRounded(negative, kept, scale + discarded, increases);
-        }
-        return roundDyadic(negative, product, scale);
-    }
-
     static Binary640 sqrt(Binary640 value) {
         if (value.isNaN() || value.signBit() && !value.isZero()) {
             return Binary640.NaN;
@@ -1632,5 +1411,28 @@ final class Binary640Math {
         }
         sum[count] = carry;
         return UnsignedWords.trim(sum);
+    }
+
+    static Binary640 scalb(Binary640 value, long scaleFactor) {
+        if (value.isNaN()) {
+            return Binary640.NaN;
+        }
+        if (value.isZero() || value.isInfinite()) {
+            return value;
+        }
+        long[] magnitude = value.magnitude();
+        long scale = value.scaleExponent();
+        long exponent = scale + UnsignedWords.bitLength(magnitude) - 1;
+        if (scaleFactor > Binary640.FORMAT.maxExponent() - exponent) {
+            return Binary640.infinity(value.signBit());
+        }
+        if (scaleFactor < Binary640.QMIN - 1L - exponent) {
+            return Binary640.zero(value.signBit());
+        }
+        return roundDyadic(value.signBit(), magnitude, scale + scaleFactor);
+    }
+
+    static Binary640 ulp(Binary640 value) {
+        return value.isNaN() ? Binary640.NaN : value.isInfinite() ? Binary640.POSITIVE_INFINITY : Binary640.ONE.scalb(value.scaleExponent());
     }
 }

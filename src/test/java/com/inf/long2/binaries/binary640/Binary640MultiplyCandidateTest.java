@@ -33,12 +33,12 @@ class Binary640MultiplyCandidateTest {
     }
 
     private static Method rounder() throws ReflectiveOperationException {
-        Class<?> math = Class.forName("com.inf.long2.binaries.Binary640Math");
+        Class<?> rounding = Class.forName("com.inf.long2.binaries.Binary640Rounding");
         Method result;
         try {
-            result = math.getDeclaredMethod("roundProduct", boolean.class, long[].class, long.class);
+            result = rounding.getDeclaredMethod("roundProduct", boolean.class, long[].class, long.class);
         } catch (NoSuchMethodException exception) {
-            result = math.getDeclaredMethod("roundOwnedDyadic", boolean.class, long[].class, long.class);
+            result = rounding.getDeclaredMethod("roundOwnedDyadic", boolean.class, long[].class, long.class);
         }
         result.setAccessible(true);
         return result;
@@ -56,7 +56,7 @@ class Binary640MultiplyCandidateTest {
 
     @Test
     void checksFullSingleWordProductsWithEveryRemainingWindow() throws ReflectiveOperationException {
-        Class<?> math = Class.forName("com.inf.long2.binaries.Binary640Math");
+        Class<?> math = Class.forName("com.inf.long2.binaries.Binary640Arithmetic");
         Method kernel = math.getDeclaredMethod("multiplyTrimmed", Binary640.class, long.class, int.class,
                 Binary640.class, long.class, int.class);
         kernel.setAccessible(true);

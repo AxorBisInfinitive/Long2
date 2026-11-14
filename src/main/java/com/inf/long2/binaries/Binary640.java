@@ -103,7 +103,7 @@ public final class Binary640 implements Binary<Binary640> {
     }
 
     public static Binary640 of(long value) {
-        return Binary640Math.roundDyadic(value < 0, new long[] {value < 0 ? -value : value}, 0);
+        return Binary640Rounding.roundDyadic(value < 0, new long[] {value < 0 ? -value : value}, 0);
     }
 
     public static Binary640 of(float value) {
@@ -123,7 +123,7 @@ public final class Binary640 implements Binary<Binary640> {
         }
         long magnitude = exponent == 0 ? fraction : fraction | (1L << fractionBits);
         long scale = (exponent == 0 ? 1L : exponent) - bias - fractionBits;
-        return Binary640Math.roundDyadic(negative, new long[] {magnitude}, scale);
+        return Binary640Rounding.roundDyadic(negative, new long[] {magnitude}, scale);
     }
 
     public static Binary640 of(Int<?> value) {
@@ -154,13 +154,13 @@ public final class Binary640 implements Binary<Binary640> {
                 if (offset < 0) {
                     sticky |= (word & ((1L << (int) -offset) - 1)) != 0;
                 }
-                Binary640Math.insert(window, word, offset);
+                Binary640Rounding.insert(window, word, offset);
             }
         }
         if (sticky) {
             window[0] |= 1;
         }
-        return Binary640Math.roundDyadic(negative, window, dropped);
+        return Binary640Rounding.roundDyadic(negative, window, dropped);
     }
 
     public static Binary640 of(Binary<?> value) {
@@ -212,7 +212,7 @@ public final class Binary640 implements Binary<Binary640> {
         long lastWord = top;
         for (int i = first - 1; i <= last; i++) {
             lastWord = i == first - 1 ? top : value.getSignificandLong(i);
-            Binary640Math.insert(window, lastWord, (groups - 1L - i) * 64 - dropped);
+            Binary640Rounding.insert(window, lastWord, (groups - 1L - i) * 64 - dropped);
         }
         // 只在偶数侧中点读取低尾项，避免极大名义精度迫使无关分组参与转换。
         long discarded = Math.max(exponent - 615, QMIN) - scale - dropped;
@@ -227,7 +227,7 @@ public final class Binary640 implements Binary<Binary640> {
                 window[0] |= 1;
             }
         }
-        return Binary640Math.roundDyadic(negative, window, scale + dropped);
+        return Binary640Rounding.roundDyadic(negative, window, scale + dropped);
     }
 
     public static Binary640 of(String value) {
@@ -305,6 +305,19 @@ public final class Binary640 implements Binary<Binary640> {
         return index == 0 ? (l0 & FRACTION_MASK) | (encodedExponent() == 0 ? 0 : HIDDEN_BIT) : getRawLong(index);
     }
 
+    long[] magnitude() {
+        long[] words = new long[10];
+        for (int i = 0; i < words.length; i++) {
+            words[i] = getSignificandLong(9 - i);
+        }
+        return UnsignedWords.trim(words);
+    }
+
+    static Binary640 raw(long[] lowWords) {
+        return fromRawBits(lowWords[9], lowWords[8], lowWords[7], lowWords[6], lowWords[5],
+                lowWords[4], lowWords[3], lowWords[2], lowWords[1], lowWords[0]);
+    }
+
     static Binary640 zero(boolean negative) {
         return negative ? NEGATIVE_ZERO : ZERO;
     }
@@ -316,37 +329,37 @@ public final class Binary640 implements Binary<Binary640> {
     @Override
     public Binary640 add(Binary640 other) {
         Objects.requireNonNull(other);
-        return Binary640Math.add(this, other, false);
+        return Binary640Arithmetic.add(this, other, false);
     }
 
     @Override
     public Binary640 subtract(Binary640 other) {
         Objects.requireNonNull(other);
-        return Binary640Math.add(this, other, true);
+        return Binary640Arithmetic.add(this, other, true);
     }
 
     @Override
     public Binary640 multiply(Binary640 other) {
         Objects.requireNonNull(other);
-        return Binary640Math.multiply(this, other);
+        return Binary640Arithmetic.multiply(this, other);
     }
 
     @Override
     public Binary640 divide(Binary640 other) {
         Objects.requireNonNull(other);
-        return Binary640Math.divide(this, other);
+        return Binary640Arithmetic.divide(this, other);
     }
 
     @Override
     public Binary640 remainder(Binary640 other) {
         Objects.requireNonNull(other);
-        return Binary640Math.remainder(this, other, false);
+        return Binary640Arithmetic.remainder(this, other, false);
     }
 
     @Override
     public Binary640 ieeeRemainder(Binary640 other) {
         Objects.requireNonNull(other);
-        return Binary640Math.remainder(this, other, true);
+        return Binary640Arithmetic.remainder(this, other, true);
     }
 
     @Override
@@ -363,37 +376,22 @@ public final class Binary640 implements Binary<Binary640> {
     public Binary640 fma(Binary640 multiplier, Binary640 addend) {
         Objects.requireNonNull(multiplier);
         Objects.requireNonNull(addend);
-        return Binary640Math.fma(this, multiplier, addend);
+        return Binary640Arithmetic.fma(this, multiplier, addend);
     }
 
     @Override
     public Binary640 sqrt() {
-        return Binary640Math.sqrt(this);
+        return Binary640Arithmetic.sqrt(this);
     }
 
     @Override
     public Binary640 scalb(long scaleFactor) {
-        if (isNaN()) {
-            return NaN;
-        }
-        if (isZero() || isInfinite()) {
-            return this;
-        }
-        long[] magnitude = Binary640Math.magnitude(this);
-        long scale = scaleExponent();
-        long exponent = scale + UnsignedWords.bitLength(magnitude) - 1;
-        if (scaleFactor > FORMAT.maxExponent() - exponent) {
-            return infinity(signBit());
-        }
-        if (scaleFactor < QMIN - 1L - exponent) {
-            return zero(signBit());
-        }
-        return Binary640Math.roundDyadic(signBit(), magnitude, scale + scaleFactor);
+        return Binary640Arithmetic.scalb(this, scaleFactor);
     }
 
     @Override
     public Binary640 ulp() {
-        return isNaN() ? NaN : isInfinite() ? POSITIVE_INFINITY : ONE.scalb(scaleExponent());
+        return Binary640Arithmetic.ulp(this);
     }
 
     @Override
@@ -427,7 +425,7 @@ public final class Binary640 implements Binary<Binary640> {
             words[i] = word + carry;
             carry = carry != 0 && words[i] == (increment ? 0 : -1) ? delta : 0;
         }
-        return Binary640Math.raw(words);
+        return raw(words);
     }
 
     private int compareOrdered(Binary640 other) {
@@ -506,10 +504,10 @@ public final class Binary640 implements Binary<Binary640> {
         if (exponent < minimumScale - 1) {
             return sign;
         }
-        long[] magnitude = Binary640Math.magnitude(this);
+        long[] magnitude = magnitude();
         int quantum = Math.max(exponent - fractionBits, minimumScale);
         int discarded = quantum - exponent + 615;
-        long rounded = Binary640Math.shiftedWord(magnitude, 0, discarded);
+        long rounded = Binary640Rounding.shiftedWord(magnitude, 0, discarded);
         if (UnsignedWords.bit(magnitude, discarded - 1)
                 && ((rounded & 1) != 0 || UnsignedWords.anyLow(magnitude, discarded - 1))) {
             rounded++;
@@ -551,7 +549,7 @@ public final class Binary640 implements Binary<Binary640> {
         if (exponent < 0) {
             return 0;
         }
-        long result = Binary640Math.shiftedWord(Binary640Math.magnitude(this), 0, 615 - exponent);
+        long result = Binary640Rounding.shiftedWord(magnitude(), 0, 615 - exponent);
         return signBit() ? -result : result;
     }
 

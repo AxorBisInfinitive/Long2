@@ -69,7 +69,7 @@ class Binary640MultiplyWindowTest {
 
     @Test
     void comparesTheCompressedWindowWithTheEntireIntegerProduct() throws ReflectiveOperationException {
-        Class<?> math = Class.forName("com.inf.long2.binaries.Binary640Math");
+        Class<?> math = Class.forName("com.inf.long2.binaries.Binary640Arithmetic");
         Method low, high;
         boolean compressed;
         try {
