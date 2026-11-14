@@ -26,6 +26,32 @@ final class Binary1280Arithmetic {
         if (b.isZero()) {
             return a;
         }
+        long ar = a.getRawLong(0), br = b.getRawLong(0);
+        int ac = (int) ((ar >>> TOP_FRACTION_BITS) & EXPONENT_MASK);
+        int bc = (int) ((br >>> TOP_FRACTION_BITS) & EXPONENT_MASK);
+        // 编码指数差是正常数和次正规数混合时实际指数差的下界。
+        int gap = ac - bc;
+        if (gap >= PRECISION + 2) {
+            return a;
+        }
+        if (gap <= -(PRECISION + 2)) {
+            return subtract ? b.negate() : b;
+        }
+        if (ac == bc) {
+            long atop = ar & FRACTION_MASK, btop = br & FRACTION_MASK;
+            if (ac == 0) {
+                return addSubnormal(a, atop, aNegative, b, btop, bNegative);
+            }
+            return addSameExponent(a, atop | HIDDEN_BIT, aNegative, b, btop | HIDDEN_BIT, bNegative, ac);
+        }
+        if (ac != 0 && bc != 0) {
+            if (gap > 0 && gap < Long.SIZE) {
+                return addNearNormal(a, ar, aNegative, b, br, bNegative, gap, bc);
+            }
+            if (gap < 0 && gap > -Long.SIZE) {
+                return addNearNormal(b, br, bNegative, a, ar, aNegative, -gap, ac);
+            }
+        }
         long[] am = magnitude(a), bm = magnitude(b);
         long aq = a.scaleExponent(), bq = b.scaleExponent();
         long ae = exponent(am, aq), be = exponent(bm, bq);
@@ -37,6 +63,153 @@ final class Binary1280Arithmetic {
             return subtract ? b.negate() : b;
         }
         return sum(am, aq, ae, aNegative, bm, bq, be, bNegative);
+    }
+
+    /** 正常数指数差为 1 至 63，高指数项左移至低指数项的位权。 */
+    private static Binary1280 addNearNormal(Binary1280 high, long highRaw, boolean highNegative,
+            Binary1280 low, long lowRaw, boolean lowNegative, int gap, int lowEncoded) {
+        boolean adding = highNegative == lowNegative;
+        int count = (PRECISION + gap + (adding ? 1 : 0) + Long.SIZE - 1) / Long.SIZE;
+        long[] exact = new long[count];
+        long highTop = (highRaw & FRACTION_MASK) | HIDDEN_BIT;
+        long lowTop = (lowRaw & FRACTION_MASK) | HIDDEN_BIT;
+        long previous = 0, carry = 0;
+        if (adding) {
+            for (int i = 0; i < WORDS; i++) {
+                long source = finiteWord(high, highTop, i);
+                long x = (source << gap) | previous;
+                previous = source >>> (Long.SIZE - gap);
+                long y = finiteWord(low, lowTop, i);
+                long partial = x + y;
+                exact[i] = partial + carry;
+                carry = Long.compareUnsigned(partial, x) < 0
+                        || Long.compareUnsigned(exact[i], partial) < 0 ? 1 : 0;
+            }
+        } else {
+            for (int i = 0; i < WORDS; i++) {
+                long source = finiteWord(high, highTop, i);
+                long x = (source << gap) | previous;
+                previous = source >>> (Long.SIZE - gap);
+                long y = finiteWord(low, lowTop, i);
+                long difference = x - y;
+                exact[i] = difference - carry;
+                carry = Long.compareUnsigned(x, y) < 0
+                        || Long.compareUnsigned(difference, carry) < 0 ? 1 : 0;
+            }
+        }
+        if (count > WORDS) {
+            exact[WORDS] = adding ? previous + carry : previous - carry;
+        }
+        return roundDyadic(highNegative, exact, lowEncoded - (long) BIAS - FRACTION_BITS);
+    }
+
+    private static Binary1280 addSameExponent(Binary1280 a, long atop, boolean aNegative,
+            Binary1280 b, long btop, boolean bNegative, int encoded) {
+        if (aNegative == bNegative) {
+            if (encoded == EXPONENT_MASK - 1) {
+                return infinity(aNegative);
+            }
+            long[] result = addEqualScale(a, atop, b, btop);
+            boolean increment = (result[0] & 3) == 3;
+            for (int i = 0; i < WORDS - 1; i++) {
+                result[i] = (result[i] >>> 1) | (result[i + 1] << 63);
+            }
+            result[WORDS - 1] >>>= 1;
+            if (increment) {
+                for (int i = 0; i < WORDS; i++) {
+                    if (++result[i] != 0) {
+                        break;
+                    }
+                }
+            }
+            result[WORDS - 1] = (aNegative ? Long.MIN_VALUE : 0)
+                    | ((encoded + 1L) << TOP_FRACTION_BITS) | (result[WORDS - 1] & FRACTION_MASK);
+            return raw(result);
+        }
+        int highest = highestDifferentWord(a, atop, b, btop);
+        if (highest < 0) {
+            return Binary1280.ZERO;
+        }
+        boolean aLarger = Long.compareUnsigned(finiteWord(a, atop, highest), finiteWord(b, btop, highest)) > 0;
+        boolean negative = aLarger ? aNegative : bNegative;
+        long[] result = aLarger ? subtractEqualScale(a, atop, b, btop, highest)
+                : subtractEqualScale(b, btop, a, atop, highest);
+        if (encoded == 1) {
+            result[WORDS - 1] |= negative ? Long.MIN_VALUE : 0;
+            return raw(result);
+        }
+        int length = UnsignedWords.bitLength(result);
+        int shift = Math.min(PRECISION - length, encoded - 1);
+        for (int i = WORDS - 1; i >= 0; i--) {
+            result[i] = shiftedWord(result, i, -shift);
+        }
+        long resultEncoded = result[WORDS - 1] >= HIDDEN_BIT ? encoded - shift : 0;
+        result[WORDS - 1] = (negative ? Long.MIN_VALUE : 0)
+                | (resultEncoded << TOP_FRACTION_BITS) | (result[WORDS - 1] & FRACTION_MASK);
+        return raw(result);
+    }
+
+    private static long finiteWord(Binary1280 value, long top, int index) {
+        return index == WORDS - 1 ? top : value.getRawLong(WORDS - 1 - index);
+    }
+
+    private static int highestDifferentWord(Binary1280 a, long atop, Binary1280 b, long btop) {
+        for (int i = WORDS - 1; i >= 0; i--) {
+            if (finiteWord(a, atop, i) != finiteWord(b, btop, i)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static long[] addEqualScale(Binary1280 a, long atop, Binary1280 b, long btop) {
+        long[] result = new long[WORDS];
+        long carry = 0;
+        for (int i = 0; i < WORDS; i++) {
+            long x = finiteWord(a, atop, i), y = finiteWord(b, btop, i);
+            long partial = x + y;
+            result[i] = partial + carry;
+            carry = Long.compareUnsigned(partial, x) < 0
+                    || Long.compareUnsigned(result[i], partial) < 0 ? 1 : 0;
+        }
+        return result;
+    }
+
+    /** 较高各组相等，最高不同组吸收低位传入的借位。 */
+    private static long[] subtractEqualScale(Binary1280 high, long highTop,
+            Binary1280 low, long lowTop, int highestDifferent) {
+        long[] result = new long[WORDS];
+        long borrow = 0;
+        for (int i = 0; i <= highestDifferent; i++) {
+            long x = finiteWord(high, highTop, i), y = finiteWord(low, lowTop, i);
+            long difference = x - y;
+            result[i] = difference - borrow;
+            borrow = Long.compareUnsigned(x, y) < 0 || Long.compareUnsigned(difference, borrow) < 0 ? 1 : 0;
+        }
+        return result;
+    }
+
+    /** 结果整数按 QMIN 计量，向隐藏位的进位正好形成最低指数的正常数。 */
+    private static Binary1280 addSubnormal(Binary1280 a, long atop, boolean aNegative,
+            Binary1280 b, long btop, boolean bNegative) {
+        boolean negative = aNegative;
+        long[] result;
+        if (aNegative == bNegative) {
+            result = addEqualScale(a, atop, b, btop);
+        } else {
+            int highest = highestDifferentWord(a, atop, b, btop);
+            if (highest < 0) {
+                return Binary1280.ZERO;
+            }
+            if (Long.compareUnsigned(finiteWord(a, atop, highest), finiteWord(b, btop, highest)) > 0) {
+                result = subtractEqualScale(a, atop, b, btop, highest);
+            } else {
+                result = subtractEqualScale(b, btop, a, atop, highest);
+                negative = bNegative;
+            }
+        }
+        result[WORDS - 1] |= negative ? Long.MIN_VALUE : 0;
+        return raw(result);
     }
 
     private static long exponent(long[] magnitude, long scale) {
