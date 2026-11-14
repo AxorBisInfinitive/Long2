@@ -5,6 +5,10 @@
 
 [如何使用 AP 静态方法实现检查器](docs/using_static_method_implements_check.md)
 
+**转发门面**：[MathCore.java](src/main/java/com/inf/long2/MathCore.java)
+
+**数值类型**：
+
 - [Int256.java](src/main/java/com/inf/long2/ints/Int256.java)
 - [Int512.java](src/main/java/com/inf/long2/ints/Int512.java)
 - [Int1024.java](src/main/java/com/inf/long2/ints/Int1024.java)
