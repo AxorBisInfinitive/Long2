@@ -5,7 +5,6 @@ import java.util.Objects;
 
 /** 精确十进制转换；幅值低组在前，不经过其他浮点格式。 */
 final class Binary256Decimal {
-    private static final int QMIN = -262378;
     private static final long EXPONENT_LIMIT = Long.MAX_VALUE / 4;
     // 仅缓存 5^(2^i), i <= 16；覆盖全部输出指数，缓存容量不随输入增长。
     private static final long[][] FIVE_POWERS = new long[17][];
@@ -155,39 +154,11 @@ final class Binary256Decimal {
         } else {
             denominator = powerOfFive(Math.toIntExact(-scale));
         }
-        return round(negative, numerator, denominator, scale);
+        return Binary256Rounding.roundRational(negative, numerator, denominator, scale);
     }
 
     private static NumberFormatException invalid(String text) {
         return new NumberFormatException("Invalid decimal value: " + text);
-    }
-
-    /** 直接舍入 numerator / denominator * 2^scale，整数商和余数共同决定最近偶数方向。 */
-    private static Binary256 round(boolean negative, long[] numerator, long[] denominator, long scale) {
-        int ratioExponent = UnsignedWords.bitLength(numerator) - UnsignedWords.bitLength(denominator);
-        int comparison = ratioExponent >= 0
-                ? UnsignedWords.compare(numerator, UnsignedWords.left(denominator, ratioExponent))
-                : UnsignedWords.compare(UnsignedWords.left(numerator, -ratioExponent), denominator);
-        long exponent = scale + ratioExponent - (comparison < 0 ? 1 : 0);
-        if (exponent > 262143) {
-            return infinity(negative);
-        }
-        if (exponent < QMIN - 1L) {
-            return zero(negative);
-        }
-        long quantum = Math.max(exponent - 236, QMIN);
-        long alignment = scale - quantum;
-        if (alignment >= 0) {
-            numerator = UnsignedWords.left(numerator, Math.toIntExact(alignment));
-        } else {
-            denominator = UnsignedWords.left(denominator, Math.toIntExact(-alignment));
-        }
-        UnsignedWords.Division division = UnsignedWords.divide(numerator, denominator);
-        long[] result = division.quotient();
-        int half = UnsignedWords.compare(UnsignedWords.left(division.remainder(), 1), denominator);
-        return Binary256.packRounded(negative, UnsignedWords.word(result, 0), UnsignedWords.word(result, 1),
-                UnsignedWords.word(result, 2), UnsignedWords.word(result, 3), quantum,
-                half > 0 || (half == 0 && UnsignedWords.bit(result, 0)));
     }
 
     static String format(Binary256 value, boolean scientific) {
