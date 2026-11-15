@@ -366,8 +366,61 @@ final class Binary1280Arithmetic {
                 return multiplyShortWords(negative, aw, bw, scale);
             }
         }
+        if (a.getRawLong(WORDS - 1) != 0 && b.getRawLong(WORDS - 1) != 0 && a.isNormal() && b.isNormal()) {
+            long scale = a.scaleExponent() + b.scaleExponent();
+            long exponentSum = scale + 2L * FRACTION_BITS;
+            if (exponentSum >= EMIN && exponentSum < EMAX) {
+                return multiplyBoundedHigh(negative, magnitude(a), magnitude(b), scale);
+            }
+        }
         Product product = multiplyFinite(a, b);
         return roundDyadic(negative, product.magnitude(), product.scale());
+    }
+
+    private static Binary1280 multiplyBoundedHigh(boolean negative, long[] a, long[] b, long scale) {
+        int firstColumn = WORDS - 2;
+        long[] window = multiplyHighWindow(a, b, firstColumn);
+        long windowScale = scale + (long) firstColumn * Long.SIZE;
+        int discarded = UnsignedWords.bitLength(window) - PRECISION;
+        int guardShift = discarded - Long.SIZE - 1;
+        long guardAndAbove = window[1] >>> guardShift;
+        boolean increment = (guardAndAbove & 1) != 0;
+        // 省略项之和小于 WORDS * B^(firstColumn + 1)，这里的上界恰好给第二组加 WORDS。
+        long upper = window[1] + WORDS;
+        boolean spansGuard = (upper >>> guardShift) != guardAndAbove;
+        long belowGuard = (1L << guardShift) - 1;
+        boolean lowerRoundsDownAtTie = increment && (guardAndAbove & 2) == 0
+                && window[0] == 0 && (window[1] & belowGuard) == 0;
+        if (spansGuard || lowerRoundsDownAtTie) {
+            return roundDyadic(negative, UnsignedWords.multiply(a, b), scale);
+        }
+
+        // 上下界的 guard 及以上位相同，第二组也未回绕。两端按最近偶数舍入一致。
+        long[] kept = new long[WORDS];
+        for (int i = 0; i < WORDS; i++) {
+            kept[i] = shiftedWord(window, i, discarded);
+        }
+        return packRounded(negative, kept, windowScale + discarded, increment);
+    }
+
+    /** 精确计算 i+j >= firstColumn 的乘积和，按 B^firstColumn 重新计位。 */
+    private static long[] multiplyHighWindow(long[] a, long[] b, int firstColumn) {
+        long[] window = new long[2 * WORDS - firstColumn];
+        for (int i = 0; i < WORDS; i++) {
+            long x = a[i], carry = 0;
+            int start = Math.max(0, firstColumn - i);
+            for (int j = start; j < WORDS; j++) {
+                long y = b[j];
+                int index = i + j - firstColumn;
+                long low = x * y, high = Math.unsignedMultiplyHigh(x, y);
+                long sum = low + window[index], next = sum + carry;
+                carry = high + (Long.compareUnsigned(sum, low) < 0 ? 1 : 0)
+                        + (Long.compareUnsigned(next, sum) < 0 ? 1 : 0);
+                window[index] = next;
+            }
+            window[i + WORDS - firstColumn] = carry;
+        }
+        return window;
     }
 
     /** 两个紧凑正常幅值的第 63 位均为一，完整乘积为 127 或 128 位。 */
