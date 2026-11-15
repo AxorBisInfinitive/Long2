@@ -95,6 +95,15 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
         return new Binary1280(top, -1L, -1L);
     }
 
+    /** 比较最高组和最低组之间的原始有效数字分组。 */
+    boolean sameMiddleWords(Binary1280 other) {
+        return ((l1 ^ other.l1) | (l2 ^ other.l2) | (l3 ^ other.l3) | (l4 ^ other.l4)
+                | (l5 ^ other.l5) | (l6 ^ other.l6) | (l7 ^ other.l7) | (l8 ^ other.l8)
+                | (l9 ^ other.l9) | (l10 ^ other.l10) | (l11 ^ other.l11) | (l12 ^ other.l12)
+                | (l13 ^ other.l13) | (l14 ^ other.l14) | (l15 ^ other.l15) | (l16 ^ other.l16)
+                | (l17 ^ other.l17) | (l18 ^ other.l18)) == 0;
+    }
+
     private static Binary1280 fromLowWords(long[] words) {
         return fromRawBits(words[19], words[18], words[17], words[16], words[15],
                 words[14], words[13], words[12], words[11], words[10],

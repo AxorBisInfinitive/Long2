@@ -44,6 +44,11 @@ final class Binary1280Arithmetic {
             }
             return addSameExponent(a, atop | HIDDEN_BIT, aNegative, b, btop | HIDDEN_BIT, bNegative, ac);
         }
+        if ((ac | bc) == 1) {
+            long atop = ar & FRACTION_MASK, btop = br & FRACTION_MASK;
+            return ac == 1 ? addAtMinimumScale(a, atop | HIDDEN_BIT, aNegative, b, btop, bNegative)
+                    : addAtMinimumScale(b, btop | HIDDEN_BIT, bNegative, a, atop, aNegative);
+        }
         if (ac != 0 && bc != 0) {
             if (gap == PRECISION + 1) {
                 return addAtFarBoundary(a, ar, ac, b, aNegative != bNegative, false);
@@ -125,21 +130,7 @@ final class Binary1280Arithmetic {
                 return infinity(aNegative);
             }
             long[] result = addEqualScale(a, atop, b, btop);
-            boolean increment = (result[0] & 3) == 3;
-            for (int i = 0; i < WORDS - 1; i++) {
-                result[i] = (result[i] >>> 1) | (result[i + 1] << 63);
-            }
-            result[WORDS - 1] >>>= 1;
-            if (increment) {
-                for (int i = 0; i < WORDS; i++) {
-                    if (++result[i] != 0) {
-                        break;
-                    }
-                }
-            }
-            result[WORDS - 1] = (aNegative ? Long.MIN_VALUE : 0)
-                    | ((encoded + 1L) << TOP_FRACTION_BITS) | (result[WORDS - 1] & FRACTION_MASK);
-            return raw(result);
+            return encodeCarriedSum(result, aNegative, encoded + 1);
         }
         int highest = highestDifferentWord(a, atop, b, btop);
         if (highest < 0) {
@@ -168,12 +159,53 @@ final class Binary1280Arithmetic {
         return raw(result);
     }
 
+    /** 最低正常数区间和次正规数共享 QMIN。正常数幅值一定占优。 */
+    private static Binary1280 addAtMinimumScale(Binary1280 normal, long normalTop, boolean normalNegative,
+            Binary1280 subnormal, long subnormalTop, boolean subnormalNegative) {
+        long[] result;
+        if (normalNegative == subnormalNegative) {
+            result = addEqualScale(normal, normalTop, subnormal, subnormalTop);
+            if ((result[WORDS - 1] & (HIDDEN_BIT << 1)) != 0) {
+                return encodeCarriedSum(result, normalNegative, 2);
+            }
+        } else {
+            result = subtractEqualScale(normal, normalTop, subnormal, subnormalTop, WORDS - 1);
+        }
+        result[WORDS - 1] |= normalNegative ? Long.MIN_VALUE : 0;
+        return raw(result);
+    }
+
+    /** 除以二并按最近偶数舍入，再写入进位后的指数。 */
+    private static Binary1280 encodeCarriedSum(long[] result, boolean negative, int encoded) {
+        boolean increment = (result[0] & 3) == 3;
+        for (int i = 0; i < WORDS - 1; i++) {
+            result[i] = (result[i] >>> 1) | (result[i + 1] << 63);
+        }
+        result[WORDS - 1] >>>= 1;
+        if (increment) {
+            for (int i = 0; i < WORDS; i++) {
+                if (++result[i] != 0) {
+                    break;
+                }
+            }
+        }
+        result[WORDS - 1] = (negative ? Long.MIN_VALUE : 0)
+                | ((long) encoded << TOP_FRACTION_BITS) | (result[WORDS - 1] & FRACTION_MASK);
+        return raw(result);
+    }
+
     private static long finiteWord(Binary1280 value, long top, int index) {
         return index == WORDS - 1 ? top : value.getRawLong(WORDS - 1 - index);
     }
 
     private static int highestDifferentWord(Binary1280 a, long atop, Binary1280 b, long btop) {
-        for (int i = WORDS - 1; i >= 0; i--) {
+        if (atop != btop) {
+            return WORDS - 1;
+        }
+        if (a.sameMiddleWords(b)) {
+            return a.getRawLong(WORDS - 1) == b.getRawLong(WORDS - 1) ? -1 : 0;
+        }
+        for (int i = WORDS - 2; i >= 0; i--) {
             if (finiteWord(a, atop, i) != finiteWord(b, btop, i)) {
                 return i;
             }

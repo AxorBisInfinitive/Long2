@@ -154,6 +154,76 @@ class Binary1280AddSubtractTest {
         }
     }
 
+    @Test
+    void mixedMinimumScaleCoversEverySubnormalWidthAndCarryParity() {
+        for (int width = 1; width <= FRACTION_BITS; width++) {
+            BigInteger subnormalMagnitude = BigInteger.ONE.shiftLeft(width - 1);
+            Binary1280 subnormal = fromRaw(subnormalMagnitude);
+            checkSignsAndOrder(positiveNormal(EMIN, BigInteger.ZERO), subnormal);
+            checkSignsAndOrder(positiveNormal(EMIN + 1, BigInteger.ZERO), subnormal);
+            BigInteger carryThreshold = HIDDEN.subtract(subnormalMagnitude);
+            for (int offset = -1; offset <= 3; offset++) {
+                BigInteger fraction = carryThreshold.add(BigInteger.valueOf(offset));
+                if (fraction.compareTo(MASK) <= 0) {
+                    checkSignsAndOrder(positiveNormal(EMIN, fraction), subnormal);
+                }
+            }
+        }
+        checkSignsAndOrder(positiveNormal(EMIN, BigInteger.ZERO), fromRaw(MASK));
+        checkSignsAndOrder(positiveNormal(EMIN, MASK), fromRaw(MASK));
+    }
+
+    @Test
+    void detectsDifferencesInEveryFractionBitAndBorrowAcrossEveryWord() {
+        for (int bit = 0; bit < FRACTION_BITS; bit++) {
+            BigInteger changed = MASK.clearBit(bit);
+            checkSignsAndOrder(positiveNormal(0, MASK), positiveNormal(0, changed));
+            checkSignsAndOrder(fromRaw(MASK), fromRaw(changed));
+        }
+        for (int bit = Long.SIZE; bit < FRACTION_BITS; bit += Long.SIZE) {
+            BigInteger crossWord = BigInteger.ONE.shiftLeft(bit);
+            checkSignsAndOrder(positiveNormal(EMIN, crossWord), positiveNormal(EMIN, crossWord.subtract(BigInteger.ONE)));
+            checkSignsAndOrder(fromRaw(crossWord), fromRaw(crossWord.subtract(BigInteger.ONE)));
+        }
+        checkSignsAndOrder(positiveNormal(0, MASK), positiveNormal(0, MASK));
+        checkSignsAndOrder(fromRaw(MASK), fromRaw(MASK));
+    }
+
+    @Test
+    void mixedResultsOnBothSidesOfMinimumNormalCancelWithinTheirScale() {
+        Binary1280 minimumNormal = positiveNormal(EMIN, BigInteger.ZERO);
+        for (int bit = 1; bit < FRACTION_BITS; bit++) {
+            BigInteger magnitude = BigInteger.ONE.shiftLeft(bit).subtract(BigInteger.ONE);
+            Binary1280 subnormal = fromRaw(magnitude);
+            Binary1280 below = minimumNormal.subtract(subnormal);
+            Binary1280 above = minimumNormal.add(subnormal);
+            BigInteger belowBits = HIDDEN.subtract(magnitude);
+            assertArrayEquals(fromRaw(belowBits).toBytes(), below.toBytes());
+            assertArrayEquals(positiveNormal(EMIN, magnitude).toBytes(), above.toBytes());
+            checkSignsAndOrder(below, fromRaw(belowBits.subtract(BigInteger.ONE)));
+            checkSignsAndOrder(above, positiveNormal(EMIN, magnitude.subtract(BigInteger.ONE)));
+        }
+    }
+
+    @Test
+    void carriedMixedSumPreservesTieParityBeforeCancellationAtTheNextExponent() {
+        for (int bit : new int[] {2, 35, 36, 63, 64, 65, 127, 128, 1216, 1250}) {
+            BigInteger magnitude = BigInteger.ONE.shiftLeft(bit);
+            Binary1280 subnormal = fromRaw(magnitude);
+            BigInteger threshold = HIDDEN.subtract(magnitude);
+            for (int offset = 0; offset <= 3; offset++) {
+                Binary1280 left = positiveNormal(EMIN, threshold.add(BigInteger.valueOf(offset)));
+                BigInteger expectedFraction = BigInteger.valueOf((offset + (offset == 3 ? 1 : 0)) / 2);
+                Binary1280 expected = positiveNormal(EMIN + 1, expectedFraction);
+                Binary1280 result = left.add(subnormal);
+                assertArrayEquals(expected.toBytes(), result.toBytes());
+                assertArrayEquals(expected.negate().toBytes(), left.negate().add(subnormal.negate()).toBytes());
+                checkSignsAndOrder(result, expected);
+                checkSignsAndOrder(result, positiveNormal(EMIN + 1, expectedFraction.add(BigInteger.ONE)));
+            }
+        }
+    }
+
     private static Binary1280 positiveNormal(int exponent, BigInteger fraction) {
         return normal(false, exponent, fraction);
     }
