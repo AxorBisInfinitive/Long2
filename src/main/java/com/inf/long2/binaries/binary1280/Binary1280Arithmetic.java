@@ -45,6 +45,12 @@ final class Binary1280Arithmetic {
             return addSameExponent(a, atop | HIDDEN_BIT, aNegative, b, btop | HIDDEN_BIT, bNegative, ac);
         }
         if (ac != 0 && bc != 0) {
+            if (gap == PRECISION + 1) {
+                return addAtFarBoundary(a, ar, ac, b, aNegative != bNegative, false);
+            }
+            if (gap == -(PRECISION + 1)) {
+                return addAtFarBoundary(b, br, bc, a, aNegative != bNegative, subtract);
+            }
             if (gap > 0 && gap < Long.SIZE) {
                 return addNearNormal(a, ar, aNegative, b, br, bNegative, gap, bc);
             }
@@ -63,6 +69,15 @@ final class Binary1280Arithmetic {
             return subtract ? b.negate() : b;
         }
         return sum(am, aq, ae, aNegative, bm, bq, be, bNegative);
+    }
+
+    /** 两个正常数指数差为 p+1，只有从二次幂朝零越过下侧中点时改变幅值。 */
+    private static Binary1280 addAtFarBoundary(Binary1280 high, long highRaw, int highEncoded,
+            Binary1280 low, boolean oppositeSigns, boolean flipHigh) {
+        if (oppositeSigns && (highRaw & FRACTION_MASK) == 0 && high.emptyFraction() && !low.emptyFraction()) {
+            return Binary1280.belowNormalPowerOfTwo(high.signBit() ^ flipHigh, highEncoded);
+        }
+        return flipHigh ? high.negate() : high;
     }
 
     /** 正常数指数差为 1 至 63，高指数项左移至低指数项的位权。 */
@@ -130,8 +145,12 @@ final class Binary1280Arithmetic {
         if (highest < 0) {
             return Binary1280.ZERO;
         }
-        boolean aLarger = Long.compareUnsigned(finiteWord(a, atop, highest), finiteWord(b, btop, highest)) > 0;
+        long aw = finiteWord(a, atop, highest), bw = finiteWord(b, btop, highest);
+        boolean aLarger = Long.compareUnsigned(aw, bw) > 0;
         boolean negative = aLarger ? aNegative : bNegative;
+        if (highest == 0) {
+            return fromExactWord(negative, aLarger ? aw - bw : bw - aw, encoded - 1);
+        }
         long[] result = aLarger ? subtractEqualScale(a, atop, b, btop, highest)
                 : subtractEqualScale(b, btop, a, atop, highest);
         if (encoded == 1) {
@@ -201,7 +220,12 @@ final class Binary1280Arithmetic {
             if (highest < 0) {
                 return Binary1280.ZERO;
             }
-            if (Long.compareUnsigned(finiteWord(a, atop, highest), finiteWord(b, btop, highest)) > 0) {
+            long aw = finiteWord(a, atop, highest), bw = finiteWord(b, btop, highest);
+            boolean aLarger = Long.compareUnsigned(aw, bw) > 0;
+            if (highest == 0) {
+                return fromExactWord(aLarger ? aNegative : bNegative, aLarger ? aw - bw : bw - aw, 0);
+            }
+            if (aLarger) {
                 result = subtractEqualScale(a, atop, b, btop, highest);
             } else {
                 result = subtractEqualScale(b, btop, a, atop, highest);
@@ -210,6 +234,44 @@ final class Binary1280Arithmetic {
         }
         result[WORDS - 1] |= negative ? Long.MIN_VALUE : 0;
         return raw(result);
+    }
+
+    /** 编码非零无符号单组幅值，原位权为 2^(QMIN + offset)。 */
+    private static Binary1280 fromExactWord(boolean negative, long magnitude, int offset) {
+        long sign = negative ? Long.MIN_VALUE : 0;
+        int length = Long.SIZE - Long.numberOfLeadingZeros(magnitude);
+        int normalize = PRECISION - length;
+        if (offset >= normalize) {
+            // 归一化后仅占最高一组或两组。
+            int distance = (WORDS - 1) * Long.SIZE - normalize;
+            long top = distance <= 0 ? magnitude << -distance : magnitude >>> distance;
+            long next = distance <= 0 ? 0 : magnitude << (Long.SIZE - distance);
+            long encoded = offset - (long) normalize + 1;
+            return Binary1280.fromRawBits(sign | (encoded << TOP_FRACTION_BITS) | (top & FRACTION_MASK),
+                    next, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        }
+        int group = offset / Long.SIZE;
+        int bits = offset % Long.SIZE;
+        long low = magnitude << bits, high = bits == 0 ? 0 : magnitude >>> (Long.SIZE - bits);
+        return Binary1280.fromRawBits(sign | shiftedPairWord(19 - group, low, high),
+                shiftedPairWord(18 - group, low, high), shiftedPairWord(17 - group, low, high),
+                shiftedPairWord(16 - group, low, high), shiftedPairWord(15 - group, low, high),
+                shiftedPairWord(14 - group, low, high), shiftedPairWord(13 - group, low, high),
+                shiftedPairWord(12 - group, low, high), shiftedPairWord(11 - group, low, high),
+                shiftedPairWord(10 - group, low, high), shiftedPairWord(9 - group, low, high),
+                shiftedPairWord(8 - group, low, high), shiftedPairWord(7 - group, low, high),
+                shiftedPairWord(6 - group, low, high), shiftedPairWord(5 - group, low, high),
+                shiftedPairWord(4 - group, low, high), shiftedPairWord(3 - group, low, high),
+                shiftedPairWord(2 - group, low, high), shiftedPairWord(1 - group, low, high),
+                shiftedPairWord(-group, low, high));
+    }
+
+    private static long shiftedPairWord(int index, long low, long high) {
+        return switch (index) {
+            case 0 -> low;
+            case 1 -> high;
+            default -> 0;
+        };
     }
 
     private static long exponent(long[] magnitude, long scale) {

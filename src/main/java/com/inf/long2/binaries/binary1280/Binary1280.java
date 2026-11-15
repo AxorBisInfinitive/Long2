@@ -89,6 +89,12 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
                 l10, l11, l12, l13, l14, l15, l16, l17, l18, l19);
     }
 
+    /** 输入二次幂的编码指数大于一，返回比它更靠近零的相邻幅值。 */
+    static Binary1280 belowNormalPowerOfTwo(boolean negative, int encoded) {
+        long top = (negative ? Long.MIN_VALUE : 0) | ((encoded - 1L) << TOP_FRACTION_BITS) | FRACTION_MASK;
+        return new Binary1280(top, -1L, -1L);
+    }
+
     private static Binary1280 fromLowWords(long[] words) {
         return fromRawBits(words[19], words[18], words[17], words[16], words[15],
                 words[14], words[13], words[12], words[11], words[10],
@@ -294,7 +300,7 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
         return (int) ((l0 >>> TOP_FRACTION_BITS) & EXPONENT_MASK);
     }
 
-    private boolean emptyFraction() {
+    boolean emptyFraction() {
         return ((l0 & FRACTION_MASK) | l1 | l2 | l3 | l4 | l5 | l6 | l7 | l8 | l9
                 | l10 | l11 | l12 | l13 | l14 | l15 | l16 | l17 | l18 | l19) == 0;
     }

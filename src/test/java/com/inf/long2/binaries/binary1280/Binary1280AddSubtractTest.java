@@ -14,6 +14,8 @@ class Binary1280AddSubtractTest {
     private static final int EMAX = 134217727;
     private static final BigInteger HIDDEN = BigInteger.ONE.shiftLeft(FRACTION_BITS);
     private static final BigInteger MASK = HIDDEN.subtract(BigInteger.ONE);
+    private static final BigInteger WORD_MASK = BigInteger.ONE.shiftLeft(Long.SIZE).subtract(BigInteger.ONE);
+    private static final BigInteger COMMON_HIGH_WORDS = BigInteger.ONE.shiftLeft(FRACTION_BITS - 1).setBit(Long.SIZE);
 
     @Test
     void coversSmallAlignmentGapsAndMidpointTails() {
@@ -75,6 +77,80 @@ class Binary1280AddSubtractTest {
             Binary1280 x = positiveNormal(exponent, a);
             Binary1280 y = positiveNormal(exponent - gap, b);
             checkPair(random.nextBoolean() ? x : x.negate(), random.nextBoolean() ? y : y.negate());
+        }
+    }
+
+    @Test
+    void farBoundaryIncludesExactMidpointsAndEveryEffectiveSign() {
+        BigInteger[] fractions = {BigInteger.ZERO, BigInteger.ONE, BigInteger.ONE.shiftLeft(63), BigInteger.ONE.shiftLeft(64),
+                BigInteger.ONE.shiftLeft(1216), BigInteger.ONE.shiftLeft(1250), MASK};
+        for (int gap : new int[] {1252, 1253, 1254}) {
+            for (int exponent : new int[] {EMIN + gap, -1, 0, 1, EMAX}) {
+                for (BigInteger high : fractions) {
+                    for (BigInteger low : fractions) {
+                        checkSignsAndOrder(positiveNormal(exponent, high), positiveNormal(exponent - gap, low));
+                    }
+                }
+            }
+        }
+        for (int encoded : new int[] {1252, 1253, 1254}) {
+            for (BigInteger fraction : fractions) {
+                if (fraction.signum() != 0) {
+                    checkSignsAndOrder(positiveNormal(EMIN + encoded - 1, BigInteger.ZERO),
+                            fromRaw(fraction));
+                }
+            }
+        }
+    }
+
+    @Test
+    void singleWordCoversEachUnsignedLengthAndTheNormalBoundary() {
+        for (int length = 1; length <= Long.SIZE; length++) {
+            int normalOffset = FRACTION_BITS + 1 - length;
+            BigInteger first = BigInteger.ONE.shiftLeft(length - 1);
+            BigInteger last = first.shiftLeft(1).subtract(BigInteger.ONE);
+            for (int offset : new int[] {0, 63, 64, 65, normalOffset - 1, normalOffset, normalOffset + 1, EMAX - EMIN}) {
+                Binary1280 common = positiveNormal(EMIN + offset, COMMON_HIGH_WORDS);
+                checkSignsAndOrder(common, positiveNormal(EMIN + offset, COMMON_HIGH_WORDS.or(first)));
+                checkSignsAndOrder(common, positiveNormal(EMIN + offset, COMMON_HIGH_WORDS.or(last)));
+            }
+            Binary1280 subnormal = fromRaw(COMMON_HIGH_WORDS);
+            checkSignsAndOrder(subnormal, fromRaw(COMMON_HIGH_WORDS.or(first)));
+            checkSignsAndOrder(subnormal, fromRaw(COMMON_HIGH_WORDS.or(last)));
+        }
+    }
+
+    @Test
+    void singleWordCoversAllShiftedSubnormalPlacementsAndCrossWordBorrow() {
+        for (int offset = 0; offset <= FRACTION_BITS; offset++) {
+            int exponent = EMIN + offset;
+            Binary1280 common = positiveNormal(exponent, COMMON_HIGH_WORDS);
+            checkSignsAndOrder(common, positiveNormal(exponent, COMMON_HIGH_WORDS.or(BigInteger.ONE)));
+            checkSignsAndOrder(common, positiveNormal(exponent, COMMON_HIGH_WORDS.or(WORD_MASK)));
+            checkSignsAndOrder(positiveNormal(exponent, BigInteger.ONE.shiftLeft(Long.SIZE)), positiveNormal(exponent, WORD_MASK));
+        }
+    }
+
+    @Test
+    void exactWordResidualFeedsFarMidpointAndThenCancelsAgain() {
+        for (int exponent : new int[] {EMIN + 1253, -1, 0, 1, EMAX - FRACTION_BITS}) {
+            Binary1280 midpoint = positiveNormal(exponent - 1253, BigInteger.ZERO);
+            Binary1280 beyondMidpoint = positiveNormal(exponent - 1253, BigInteger.ONE);
+            Binary1280 expectedPower = positiveNormal(exponent, BigInteger.ZERO);
+            Binary1280 expectedPredecessor = positiveNormal(exponent - 1, MASK);
+            Binary1280 lowerNeighbor = positiveNormal(exponent - 1, MASK.subtract(BigInteger.ONE));
+            for (int bit : new int[] {0, 35, 36, 63}) {
+                int operandExponent = exponent + FRACTION_BITS - bit;
+                Binary1280 a = positiveNormal(operandExponent, COMMON_HIGH_WORDS.setBit(bit));
+                Binary1280 b = positiveNormal(operandExponent, COMMON_HIGH_WORDS);
+                Binary1280 residual = a.subtract(b);
+                assertArrayEquals(expectedPower.toBytes(), residual.toBytes());
+                checkSignsAndOrder(residual, midpoint);
+                checkSignsAndOrder(residual, beyondMidpoint);
+                Binary1280 stepped = residual.subtract(beyondMidpoint);
+                assertArrayEquals(expectedPredecessor.toBytes(), stepped.toBytes());
+                checkSignsAndOrder(stepped, lowerNeighbor);
+            }
         }
     }
 
