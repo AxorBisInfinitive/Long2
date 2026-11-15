@@ -358,8 +358,36 @@ final class Binary1280Arithmetic {
         if (a.isZero() || b.isZero()) {
             return zero(negative);
         }
+        long aw = a.compactNormalSignificand();
+        if (aw != 0) {
+            long bw = b.compactNormalSignificand();
+            if (bw != 0) {
+                long scale = a.scaleExponent() + b.scaleExponent() + 2L * (PRECISION - Long.SIZE);
+                return multiplyShortWords(negative, aw, bw, scale);
+            }
+        }
         Product product = multiplyFinite(a, b);
         return roundDyadic(negative, product.magnitude(), product.scale());
+    }
+
+    /** 两个紧凑正常幅值的第 63 位均为一，完整乘积为 127 或 128 位。 */
+    private static Binary1280 multiplyShortWords(boolean negative, long a, long b, long scale) {
+        long low = a * b, high = Math.unsignedMultiplyHigh(a, b);
+        int length = high < 0 ? 128 : 127;
+        long exponent = scale + length - 1;
+        if (exponent > EMAX) {
+            return infinity(negative);
+        }
+        if (exponent < EMIN) {
+            return roundDyadic(negative, new long[] {low, high}, scale);
+        }
+        // 结果在正常区间，两个分组的精确积左对齐后至多占编码的前三组。
+        int left = (PRECISION - length) % Long.SIZE;
+        int right = Long.SIZE - left;
+        long top = (negative ? Long.MIN_VALUE : 0) | ((exponent + BIAS) << TOP_FRACTION_BITS)
+                | ((high >>> right) & FRACTION_MASK);
+        return Binary1280.fromRawBits(top, (high << left) | (low >>> right), low << left,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     }
 
     private static boolean invalidProduct(Binary1280 a, Binary1280 b) {
@@ -370,16 +398,37 @@ final class Binary1280Arithmetic {
     }
 
     private static Product multiplyFinite(Binary1280 a, Binary1280 b) {
-        long[] am = UnsignedWords.trim(magnitude(a)), bm = UnsignedWords.trim(magnitude(b));
-        int az = lowZeroWords(am), bz = lowZeroWords(bm);
-        if (az != 0) {
-            am = Arrays.copyOfRange(am, az, am.length);
-        }
-        if (bz != 0) {
-            bm = Arrays.copyOfRange(bm, bz, bm.length);
-        }
-        long scale = a.scaleExponent() + b.scaleExponent() + 64L * (az + bz);
+        long ar = a.getRawLong(0), br = b.getRawLong(0);
+        int ac = (int) ((ar >>> TOP_FRACTION_BITS) & EXPONENT_MASK);
+        int bc = (int) ((br >>> TOP_FRACTION_BITS) & EXPONENT_MASK);
+        long atop = (ar & FRACTION_MASK) | (ac == 0 ? 0 : HIDDEN_BIT);
+        long btop = (br & FRACTION_MASK) | (bc == 0 ? 0 : HIDDEN_BIT);
+        int az = lowZeroGroups(a), bz = lowZeroGroups(b);
+        long[] am = magnitudeRange(a, atop, az), bm = magnitudeRange(b, btop, bz);
+        long scale = (ac == 0 ? QMIN : ac - (long) BIAS - FRACTION_BITS)
+                + (bc == 0 ? QMIN : bc - (long) BIAS - FRACTION_BITS) + 64L * (az + bz);
         return new Product(UnsignedWords.multiply(am, bm), scale);
+    }
+
+    /** 输入非零；最低可能的非零组由调用方用于修正位权。 */
+    private static int lowZeroGroups(Binary1280 value) {
+        int index = 0;
+        while (index < WORDS - 1 && value.getRawLong(WORDS - 1 - index) == 0) {
+            index++;
+        }
+        return index;
+    }
+
+    private static long[] magnitudeRange(Binary1280 value, long top, int first) {
+        int last = WORDS - 1;
+        while (last > first && finiteWord(value, top, last) == 0) {
+            last--;
+        }
+        long[] result = new long[last - first + 1];
+        for (int i = first; i <= last; i++) {
+            result[i - first] = finiteWord(value, top, i);
+        }
+        return result;
     }
 
     static Binary1280 fma(Binary1280 a, Binary1280 b, Binary1280 c) {

@@ -314,6 +314,17 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
                 | l10 | l11 | l12 | l13 | l14 | l15 | l16 | l17 | l18 | l19) == 0;
     }
 
+    /** 有效数字能右移为单组的正常数返回其单组幅值，否则返回零。调用方已排除非有限值。 */
+    long compactNormalSignificand() {
+        int shift = PRECISION % Long.SIZE;
+        long lowMask = (1L << shift) - 1;
+        if (l19 != 0 || ((l1 & lowMask) | l2 | l3 | l4 | l5 | l6 | l7 | l8 | l9
+                | l10 | l11 | l12 | l13 | l14 | l15 | l16 | l17 | l18) != 0 || encodedExponent() == 0) {
+            return 0;
+        }
+        return (((l0 & FRACTION_MASK) | HIDDEN_BIT) << (Long.SIZE - shift)) | (l1 >>> shift);
+    }
+
     @Override
     public boolean signBit() {
         return l0 < 0;
