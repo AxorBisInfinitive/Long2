@@ -325,6 +325,18 @@ public final class Binary1280 implements Binary<Binary1280>, BinaryMath {
         return (((l0 & FRACTION_MASK) | HIDDEN_BIT) << (Long.SIZE - shift)) | (l1 >>> shift);
     }
 
+    /** 恰有 65 位的正常有效数字返回其低 64 位（必为奇数），否则返回零。调用方已排除非有限值。 */
+    long compact65NormalLow() {
+        int shift = (PRECISION - Long.SIZE - 1) % Long.SIZE;
+        long bit = 1L << shift;
+        if (l19 != 0 || (l1 & ((bit << 1) - 1)) != bit
+                || (l2 | l3 | l4 | l5 | l6 | l7 | l8 | l9 | l10 | l11 | l12 | l13 | l14 | l15 | l16 | l17 | l18) != 0
+                || encodedExponent() == 0) {
+            return 0;
+        }
+        return ((l0 & FRACTION_MASK) << (Long.SIZE - shift)) | (l1 >>> shift);
+    }
+
     @Override
     public boolean signBit() {
         return l0 < 0;

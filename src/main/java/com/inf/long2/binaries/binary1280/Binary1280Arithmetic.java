@@ -378,8 +378,44 @@ final class Binary1280Arithmetic {
         if (bw != 0) {
             return multiplyWordByValue(negative, bw, b.scaleExponent() + PRECISION - Long.SIZE, a);
         }
+        Binary1280 shortProduct = multiply65IfDense(negative, a, b);
+        if (shortProduct != null) {
+            return shortProduct;
+        }
         Product product = multiplyFinite(a, b);
         return roundDyadic(negative, product.magnitude(), product.scale());
+    }
+
+    private static Binary1280 multiply65IfDense(boolean negative, Binary1280 a, Binary1280 b) {
+        boolean aDense = a.getRawLong(WORDS - 1) != 0, bDense = b.getRawLong(WORDS - 1) != 0;
+        if (aDense == bDense) {
+            return null;
+        }
+        Binary1280 dense = aDense ? a : b, shorter = aDense ? b : a;
+        if (!dense.isNormal()) {
+            return null;
+        }
+        long low = shorter.compact65NormalLow();
+        return low == 0 ? null : multiply65ByDense(negative, low, shorter.scaleExponent(), dense);
+    }
+
+    private static Binary1280 multiply65ByDense(boolean negative, long low, long scale, Binary1280 dense) {
+        long top = (dense.getRawLong(0) & FRACTION_MASK) | HIDDEN_BIT;
+        long[] product = new long[WORDS + 1];
+        long carry = 0, previous = 0;
+        for (int i = 0; i < WORDS; i++) {
+            long word = finiteWord(dense, top, i);
+            long lo = low * word;
+            // (2^64 + low) * dense，将错位的一行和乘积行合并写出。
+            long sum = lo + previous, next = sum + carry;
+            carry = Math.unsignedMultiplyHigh(low, word) + (Long.compareUnsigned(sum, lo) < 0 ? 1 : 0)
+                    + (Long.compareUnsigned(next, sum) < 0 ? 1 : 0);
+            product[i] = next;
+            previous = word;
+        }
+        // 完整积至多 PRECISION + 65 位，最高组内的和不会溢出。
+        product[WORDS] = carry + previous;
+        return roundDyadic(negative, product, scale + dense.scaleExponent() + PRECISION - Long.SIZE - 1);
     }
 
     /** 对方为有限非零值，直接从有效组读取，逐组写出精确乘积。 */
@@ -459,8 +495,8 @@ final class Binary1280Arithmetic {
                 int index = i + j - firstColumn;
                 long low = x * y, high = Math.unsignedMultiplyHigh(x, y);
                 long sum = low + window[index], next = sum + carry;
-                carry = high + (Long.compareUnsigned(sum, low) < 0 ? 1 : 0)
-                        + (Long.compareUnsigned(next, sum) < 0 ? 1 : 0);
+                carry = high + (Long.compareUnsigned(sum, low) < 0 ? 1L : 0L)
+                        + (Long.compareUnsigned(next, sum) < 0 ? 1L : 0L);
                 window[index] = next;
             }
             window[i + WORDS - firstColumn] = carry;
