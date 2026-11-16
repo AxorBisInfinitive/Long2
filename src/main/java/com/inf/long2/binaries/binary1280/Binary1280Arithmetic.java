@@ -413,7 +413,43 @@ final class Binary1280Arithmetic {
         }
         // 完整积至多 PRECISION + 65 位，最高组内的和不会溢出。
         product[WORDS] = carry + previous;
-        return roundDyadic(negative, product, scale + dense.scaleExponent() + PRECISION - Long.SIZE - 1);
+        return roundOwnedWord65Product(negative, product, scale + dense.scaleExponent() + PRECISION - Long.SIZE - 1);
+    }
+
+    /** 两个正常数的精确幅值分别为 65 位和 1252 位，正常结果仅需右移 64 或 65 位。 */
+    private static Binary1280 roundOwnedWord65Product(boolean negative, long[] product, long scale) {
+        boolean extraBit = (product[WORDS] & (HIDDEN_BIT << 1)) != 0;
+        long exponent = scale + (long) WORDS * Long.SIZE + TOP_FRACTION_BITS + (extraBit ? 1 : 0);
+        if (exponent < EMIN) {
+            return roundDyadic(negative, product, scale);
+        }
+        boolean increment;
+        if (extraBit) {
+            increment = (product[1] & 1) != 0 && (product[0] != 0 || (product[1] & 2) != 0);
+            for (int i = 0; i < WORDS - 1; i++) {
+                product[i] = (product[i + 1] >>> 1) | (product[i + 2] << 63);
+            }
+            product[WORDS - 1] = product[WORDS] >>> 1;
+        } else {
+            increment = product[0] < 0 && ((product[0] << 1) != 0 || (product[1] & 1) != 0);
+            System.arraycopy(product, 1, product, 0, WORDS);
+        }
+        if (increment) {
+            for (int i = 0; i < WORDS; i++) {
+                if (++product[i] != 0) {
+                    break;
+                }
+            }
+            if ((product[WORDS - 1] & (HIDDEN_BIT << 1)) != 0) {
+                exponent++;
+            }
+        }
+        if (exponent > EMAX) {
+            return infinity(negative);
+        }
+        product[WORDS - 1] = (negative ? Long.MIN_VALUE : 0) | ((exponent + BIAS) << TOP_FRACTION_BITS)
+                | (product[WORDS - 1] & FRACTION_MASK);
+        return raw(product);
     }
 
     /** 对方为有限非零值，直接从有效组读取，逐组写出精确乘积。 */
