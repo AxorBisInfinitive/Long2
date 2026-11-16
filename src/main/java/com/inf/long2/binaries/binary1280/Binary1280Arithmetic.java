@@ -395,12 +395,30 @@ final class Binary1280Arithmetic {
             return roundDyadic(negative, UnsignedWords.multiply(a, b), scale);
         }
 
-        // 上下界的 guard 及以上位相同，第二组也未回绕。两端按最近偶数舍入一致。
-        long[] kept = new long[WORDS];
+        // 舍入方向已确定。保留位固定右移一组再移 35 或 36 位，从低组写回不会覆盖后续源位。
+        int shift = discarded - Long.SIZE;
+        int complement = Long.SIZE - shift;
         for (int i = 0; i < WORDS; i++) {
-            kept[i] = shiftedWord(window, i, discarded);
+            window[i] = (window[i + 1] >>> shift) | (window[i + 2] << complement);
         }
-        return packRounded(negative, kept, windowScale + discarded, increment);
+        long encoded = windowScale + discarded + FRACTION_BITS + BIAS;
+        if (increment) {
+            for (int i = 0; i < WORDS; i++) {
+                if (++window[i] != 0) {
+                    break;
+                }
+            }
+            // 进位越过隐藏位时，低组已经全零，掩码会清除最高组的进位。
+            if ((window[WORDS - 1] & (HIDDEN_BIT << 1)) != 0) {
+                encoded++;
+            }
+        }
+        if (encoded >= EXPONENT_MASK) {
+            return infinity(negative);
+        }
+        window[WORDS - 1] = (negative ? Long.MIN_VALUE : 0) | (encoded << TOP_FRACTION_BITS)
+                | (window[WORDS - 1] & FRACTION_MASK);
+        return raw(window);
     }
 
     /** 精确计算 i+j >= firstColumn 的乘积和，按 B^firstColumn 重新计位。 */
