@@ -365,19 +365,45 @@ final class Binary1280Arithmetic {
                 long scale = a.scaleExponent() + b.scaleExponent() + 2L * (PRECISION - Long.SIZE);
                 return multiplyShortWords(negative, aw, bw, scale);
             }
+            return multiplyWordByValue(negative, aw, a.scaleExponent() + PRECISION - Long.SIZE, b);
         }
         if (a.getRawLong(WORDS - 1) != 0 && b.getRawLong(WORDS - 1) != 0 && a.isNormal() && b.isNormal()) {
             long scale = a.scaleExponent() + b.scaleExponent();
             long exponentSum = scale + 2L * FRACTION_BITS;
             if (exponentSum >= EMIN && exponentSum < EMAX) {
-                return multiplyBoundedHigh(negative, magnitude(a), magnitude(b), scale);
+                return multiplyBoundedHigh(negative, a, magnitude(b), scale);
             }
+        }
+        long bw = b.compactNormalSignificand();
+        if (bw != 0) {
+            return multiplyWordByValue(negative, bw, b.scaleExponent() + PRECISION - Long.SIZE, a);
         }
         Product product = multiplyFinite(a, b);
         return roundDyadic(negative, product.magnitude(), product.scale());
     }
 
-    private static Binary1280 multiplyBoundedHigh(boolean negative, long[] a, long[] b, long scale) {
+    /** 对方为有限非零值，直接从有效组读取，逐组写出精确乘积。 */
+    private static Binary1280 multiplyWordByValue(boolean negative, long word, long wordScale, Binary1280 value) {
+        long raw = value.getRawLong(0);
+        int encoded = (int) ((raw >>> TOP_FRACTION_BITS) & EXPONENT_MASK);
+        long top = (raw & FRACTION_MASK) | (encoded == 0 ? 0 : HIDDEN_BIT);
+        int first = lowZeroGroups(value), last = lastNonzeroGroup(value, top, first);
+        long[] product = new long[last - first + 2];
+        long carry = 0;
+        for (int i = first; i <= last; i++) {
+            long part = finiteWord(value, top, i);
+            long low = word * part;
+            long next = low + carry;
+            product[i - first] = next;
+            carry = Math.unsignedMultiplyHigh(word, part) + (Long.compareUnsigned(next, low) < 0 ? 1 : 0);
+        }
+        product[product.length - 1] = carry;
+        long scale = (encoded == 0 ? QMIN : encoded - (long) BIAS - FRACTION_BITS)
+                + wordScale + (long) first * Long.SIZE;
+        return roundDyadic(negative, product, scale);
+    }
+
+    private static Binary1280 multiplyBoundedHigh(boolean negative, Binary1280 a, long[] b, long scale) {
         int firstColumn = WORDS - 2;
         long[] window = multiplyHighWindow(a, b, firstColumn);
         long windowScale = scale + (long) firstColumn * Long.SIZE;
@@ -392,7 +418,7 @@ final class Binary1280Arithmetic {
         boolean lowerRoundsDownAtTie = increment && (guardAndAbove & 2) == 0
                 && window[0] == 0 && (window[1] & belowGuard) == 0;
         if (spansGuard || lowerRoundsDownAtTie) {
-            return roundDyadic(negative, UnsignedWords.multiply(a, b), scale);
+            return roundDyadic(negative, UnsignedWords.multiply(magnitude(a), b), scale);
         }
 
         // 舍入方向已确定。保留位固定右移一组再移 35 或 36 位，从低组写回不会覆盖后续源位。
@@ -421,11 +447,12 @@ final class Binary1280Arithmetic {
         return raw(window);
     }
 
-    /** 精确计算 i+j >= firstColumn 的乘积和，按 B^firstColumn 重新计位。 */
-    private static long[] multiplyHighWindow(long[] a, long[] b, int firstColumn) {
+    /** 左操作数为正常数，每行只读取一个分组。窗口按 B^firstColumn 重新计位。 */
+    private static long[] multiplyHighWindow(Binary1280 a, long[] b, int firstColumn) {
         long[] window = new long[2 * WORDS - firstColumn];
+        long top = (a.getRawLong(0) & FRACTION_MASK) | HIDDEN_BIT;
         for (int i = 0; i < WORDS; i++) {
-            long x = a[i], carry = 0;
+            long x = finiteWord(a, top, i), carry = 0;
             int start = Math.max(0, firstColumn - i);
             for (int j = start; j < WORDS; j++) {
                 long y = b[j];
@@ -490,11 +517,16 @@ final class Binary1280Arithmetic {
         return index;
     }
 
-    private static long[] magnitudeRange(Binary1280 value, long top, int first) {
+    private static int lastNonzeroGroup(Binary1280 value, long top, int first) {
         int last = WORDS - 1;
         while (last > first && finiteWord(value, top, last) == 0) {
             last--;
         }
+        return last;
+    }
+
+    private static long[] magnitudeRange(Binary1280 value, long top, int first) {
+        int last = lastNonzeroGroup(value, top, first);
         long[] result = new long[last - first + 1];
         for (int i = first; i <= last; i++) {
             result[i - first] = finiteWord(value, top, i);
