@@ -1,8 +1,35 @@
 package com.inf.long2.ints;
 
+import com.inf.long2.Binary;
+
 /** 固定补码和无符号幅值均按低组在前存放，方法不裁剪高零组；原地方法仅接受调用方独占的数组。 */
 final class IntWords {
     private IntWords() {
+    }
+
+    /** 检查有限非零源值的小数部分，幅值小于一时不读取有效数字分组。 */
+    static boolean hasFractionalPart(Binary<?> value) {
+        if (!value.isNormal()) {
+            return true;
+        }
+        int precision = value.format().precision();
+        long scale = value.scaleExponent();
+        if (scale + precision - 1L < 0) {
+            return true;
+        }
+        if (scale >= 0) {
+            return false;
+        }
+        int groups = (int) ((precision + 63L) / 64);
+        long discarded = -scale;
+        int whole = (int) (discarded / 64);
+        for (int index = 0; index < whole; index++) {
+            if (value.getSignificandLong(groups - 1 - index) != 0) {
+                return true;
+            }
+        }
+        int bits = (int) (discarded & 63);
+        return bits != 0 && (value.getSignificandLong(groups - 1 - whole) & ((1L << bits) - 1)) != 0;
     }
 
     /** 在原有位宽内取补码，最终进位丢弃，最小负数的位模式保持不变。 */

@@ -4,12 +4,13 @@ import java.util.Objects;
 
 import com.inf.long2.Binary;
 import com.inf.long2.Int;
+import com.inf.long2.IntMath;
 
 /**
  * 位宽为 1024-bit 的 {@link Int} 实现，以十六个 long 保存完整位模式。
  * {@code l0} 为最高组，包含符号位；{@code l15} 为最低组。
  */
-public final class Int1024 implements Int<Int1024> {
+public final class Int1024 implements Int<Int1024>, IntMath {
     public static final Format FORMAT = new Format(1024);
     public static final Int1024 MAX_VALUE = new Int1024(
             Long.MAX_VALUE, -1L, -1L, -1L,
@@ -173,6 +174,41 @@ public final class Int1024 implements Int<Int1024> {
             result = fromLowWords(words);
         }
         return negative ? result.negate() : result;
+    }
+
+    /** 返回绝对值，最小值按定宽取负后仍为最小值。 */
+    public static Int1024 abs(Int1024 value) {
+        Objects.requireNonNull(value);
+        return value.isNegative() ? value.negate() : value;
+    }
+
+    /** 返回较大的参数，数值相等时返回 a。 */
+    public static Int1024 max(Int1024 a, Int1024 b) {
+        Objects.requireNonNull(a);
+        Objects.requireNonNull(b);
+        return a.compareTo(b) >= 0 ? a : b;
+    }
+
+    /** 返回较小的参数，数值相等时返回 a。 */
+    public static Int1024 min(Int1024 a, Int1024 b) {
+        Objects.requireNonNull(a);
+        Objects.requireNonNull(b);
+        return a.compareTo(b) <= 0 ? a : b;
+    }
+
+    /** 按 {@link IntMath#ofFloor(double)} 向负无穷取整并钳制到当前位宽。 */
+    public static Int1024 ofFloor(double value) {
+        return of(Math.floor(value));
+    }
+
+    /** 按 {@link IntMath#ofFloor(Binary)} 从精确源数值向负无穷取整并钳制到当前位宽。 */
+    public static Int1024 ofFloor(Binary<?> value) {
+        Int1024 truncated = of(value);
+        if (!value.signBit() || !value.isFinite() || value.isZero() || truncated.equals(MIN_VALUE)) {
+            return truncated;
+        }
+        // 负向钳制已在上方处理，减一不会从最小值回绕。
+        return IntWords.hasFractionalPart(value) ? truncated.subtract(ONE) : truncated;
     }
 
     public static Int1024 of(Int<?> value) {
