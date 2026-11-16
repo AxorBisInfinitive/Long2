@@ -1,7 +1,5 @@
 package com.inf.long2.binaries.binary1280;
 
-import java.util.Arrays;
-
 import com.inf.long2.binaries.internal.UnsignedWords;
 
 import static com.inf.long2.binaries.binary1280.Binary1280Encoding.*;
