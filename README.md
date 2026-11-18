@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Java 25](https://img.shields.io/badge/Java-25-orange?logo=openjdk&logoColor=white)
 
-[如何使用 AP 静态方法实现检查器](docs/using_static_method_implements_check.md)
+[AP 使用说明](docs/using_static_method_implements_check.md)
 
 **转发门面**：[MathCore.java](src/main/java/love/crysh/long2/MathCore.java)
 
@@ -27,7 +27,7 @@ mvn -Pnumeric-text-extreme '-DargLine=-Xmx2g' test
 
 ## 作为依赖
 
-主库及注解处理器已从 `0.2.2` 起发布到 Maven Central。可添加以下依赖。
+主库及 AP 已从 v0.2.2 起发布到 Maven Central。
 
 ```xml
 <dependency>
@@ -36,9 +36,3 @@ mvn -Pnumeric-text-extreme '-DargLine=-Xmx2g' test
     <version>0.2.2</version>
 </dependency>
 ```
-
-运行主库需要 Java 25。注解处理器的 Maven 配置见 [AP 使用说明](docs/using_static_method_implements_check.md)。
-
-原 GitHub Pages Maven 仓库已停用，历史制品保留在 `maven-repository` 分支。旧版用户需要迁移依赖坐标并更新 Java 导入包名。
-
-发布步骤见 [Maven Central 发布说明](docs/publishing_maven_central.md)。
