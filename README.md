@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Java 25](https://img.shields.io/badge/Java-25-orange?logo=openjdk&logoColor=white)
 
-[AP 使用说明](docs/using_static_method_implements_check.md)
+[AP 使用说明](docs/ap.md)
 
 **转发门面**：[MathCore.java](src/main/java/love/crysh/long2/MathCore.java)
 
