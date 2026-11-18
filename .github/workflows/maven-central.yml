@@ -1,0 +1,85 @@
+name: Publish to Maven Central
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to upload for validation in Central Portal
+        required: true
+        default: v0.2.2
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maven-central
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || !github.event.release.prerelease
+    runs-on: ubuntu-24.04
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - name: Check release coordinates
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          import xml.etree.ElementTree as ET
+
+          tag = os.environ["RELEASE_TAG"]
+          if not re.fullmatch(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", tag):
+              raise SystemExit("Expected a stable release tag such as v0.2.2")
+          namespace = {"m": "http://maven.apache.org/POM/4.0.0"}
+          for path, artifact in (("pom.xml", "Long2"), ("ap/pom.xml", "int-contract-processor")):
+              pom = ET.parse(path).getroot()
+              actual = tuple(pom.findtext("m:" + name, namespaces=namespace)
+                             for name in ("groupId", "artifactId", "version"))
+              expected = ("love.crysh.long2", artifact, tag[1:])
+              if actual != expected:
+                  raise SystemExit(f"{path} coordinates {actual} do not match {expected}")
+          PY
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: |
+            pom.xml
+            ap/pom.xml
+          server-id: central
+          server-username: CENTRAL_USERNAME
+          server-password: CENTRAL_PASSWORD
+      - name: Build, sign and upload both artifacts
+        shell: bash
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          MAVEN_GPG_KEY: ${{ secrets.MAVEN_GPG_KEY }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          for name in CENTRAL_USERNAME CENTRAL_PASSWORD MAVEN_GPG_KEY; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing repository secret ${name}" >&2
+              exit 1
+            fi
+          done
+          mvn -B -ntp -Prelease -f ap/pom.xml clean deploy
+          mvn -B -ntp -Prelease clean deploy
+      - name: Record Portal publication step
+        shell: bash
+        run: |
+          printf '%s\n' \
+            'Both deployments passed Central Portal validation.' \
+            'Publish int-contract-processor and Long2 in Central Portal to make them available in Maven Central.' \
+            >> "$GITHUB_STEP_SUMMARY"

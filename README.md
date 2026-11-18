@@ -19,6 +19,7 @@
 ## 测试
 
 ```bash
+mvn -f ap/pom.xml install
 mvn test
 mvn -Pnumeric-text test
 mvn -Pnumeric-text-extreme '-DargLine=-Xmx2g' test
@@ -26,4 +27,18 @@ mvn -Pnumeric-text-extreme '-DargLine=-Xmx2g' test
 
 ## 作为依赖
 
-**仓库地址**：`https://axorbisinfinitive.github.io/Long2/maven/`。
+计划从 `0.2.2` 起通过 Maven Central 发布主库及注解处理器。首次发布正在准备中，发布完成后可添加以下依赖。
+
+```xml
+<dependency>
+    <groupId>love.crysh.long2</groupId>
+    <artifactId>Long2</artifactId>
+    <version>0.2.2</version>
+</dependency>
+```
+
+运行主库需要 Java 25。注解处理器的 Maven 配置见 [AP 使用说明](docs/using_static_method_implements_check.md)。
+
+原 GitHub Pages Maven 仓库已停用，历史制品保留在 `maven-repository` 分支。旧版用户需要迁移依赖坐标并更新 Java 导入包名。
+
+发布步骤见 [Maven Central 发布说明](docs/publishing_maven_central.md)。

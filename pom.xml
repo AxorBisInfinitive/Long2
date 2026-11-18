@@ -9,6 +9,31 @@
     <packaging>jar</packaging>
 
     <name>Long2</name>
+    <description>Immutable fixed-width integers and binary floating-point numbers for Java.</description>
+    <url>https://github.com/AxorBisInfinitive/Long2</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/license/mit/</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>AxorBisInfinitive</id>
+            <name>Infinitive</name>
+            <url>https://github.com/AxorBisInfinitive</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/AxorBisInfinitive/Long2.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/AxorBisInfinitive/Long2.git</developerConnection>
+        <url>https://github.com/AxorBisInfinitive/Long2</url>
+        <tag>v${project.version}</tag>
+    </scm>
 
     <properties>
         <maven.compiler.release>25</maven.compiler.release>
@@ -21,7 +46,7 @@
         <dependency>
             <groupId>love.crysh.long2</groupId>
             <artifactId>int-contract-processor</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -33,6 +58,18 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>${project.basedir}</directory>
+                <includes>
+                    <include>LICENSE</include>
+                </includes>
+                <targetPath>META-INF</targetPath>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -58,7 +95,7 @@
                         <path>
                             <groupId>love.crysh.long2</groupId>
                             <artifactId>int-contract-processor</artifactId>
-                            <version>0.0.1-SNAPSHOT</version>
+                            <version>${project.version}</version>
                         </path>
                     </annotationProcessorPaths>
                     <annotationProcessors>
@@ -71,6 +108,69 @@
     </build>
 
     <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.4.0</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.12.0</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadoc</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+                        <configuration>
+                            <signer>bc</signer>
+                            <bestPractices>true</bestPractices>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.12.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <deploymentName>${project.groupId}:${project.artifactId}:${project.version}</deploymentName>
+                            <autoPublish>false</autoPublish>
+                            <waitUntil>validated</waitUntil>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile>
             <id>numeric-text</id>
             <properties>
