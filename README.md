@@ -27,7 +27,7 @@ mvn -Pnumeric-text-extreme '-DargLine=-Xmx2g' test
 
 ## 作为依赖
 
-计划从 `0.2.2` 起通过 Maven Central 发布主库及注解处理器。首次发布正在准备中，发布完成后可添加以下依赖。
+主库及注解处理器已从 `0.2.2` 起发布到 Maven Central。可添加以下依赖。
 
 ```xml
 <dependency>

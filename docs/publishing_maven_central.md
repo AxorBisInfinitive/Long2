@@ -1,6 +1,6 @@
 # 发布到 Maven Central
 
-主库和注解处理器使用相同的发布版本。当前准备发布的坐标为 `love.crysh.long2:Long2:0.2.2` 和 `love.crysh.long2:int-contract-processor:0.2.2`。
+主库和注解处理器使用相同的发布版本。`love.crysh.long2:Long2:0.2.2` 和 `love.crysh.long2:int-contract-processor:0.2.2` 已于 2026 年 11 月 18 日发布到 Maven Central，并通过独立 Maven 项目的下载、编译和运行验证。
 
 ## 首次配置
 

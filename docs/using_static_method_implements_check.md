@@ -8,7 +8,7 @@ mvn -f ap/pom.xml clean install
 
 之后 Maven 和 VS Code JLS 会自动进行检查。若未通过检查，Maven 会编译失败，而 VS Code JLS 会在 Problems 中提示问题。
 
-主库和处理器使用配套版本 `0.2.2`。Maven Central 首次发布完成后，外部项目可以在依赖 Long2 的同时配置以下编译插件，以检查自己的契约实现。
+主库和处理器已发布到 Maven Central，使用配套版本 `0.2.2`。外部项目可以在依赖 Long2 的同时配置以下编译插件，以检查自己的契约实现。
 
 ```xml
 <plugin>
