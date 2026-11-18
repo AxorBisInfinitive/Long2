@@ -1,4 +1,19 @@
 {
-  "java.autobuild.enabled": true,
-  "java.configuration.updateBuildConfiguration": "automatic"
+    "java.autobuild.enabled": true,
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.project.resourceFilters": [
+        "node_modules",
+        "\\.git",
+        "debug"
+    ],
+    "java.import.exclusions": [
+        "**/node_modules/**",
+        "**/.metadata/**",
+        "**/archetype-resources/**",
+        "**/META-INF/maven/**",
+        "**/debug/**"
+    ],
+    "python.analysis.exclude": [
+        "**/debug/**"
+    ]
 }
