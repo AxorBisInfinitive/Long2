@@ -134,9 +134,22 @@ def publish(site, pom, jar, sources):
             checked_path(site, relative).write_bytes(data)
     links = "\n".join(f'<li><a href="{html.escape(value)}/{html.escape(artifact)}-{html.escape(value)}.pom">{html.escape(value)}</a></li>' for value in reversed(versions))
     module.joinpath("index.html").write_text(f'<!doctype html>\n<meta charset="utf-8">\n<title>{html.escape(group + ":" + artifact)}</title>\n<h1>{html.escape(group + ":" + artifact)}</h1>\n<ul>{links}</ul>\n', encoding="utf-8")
-    site.joinpath("maven/index.html").write_text('<!doctype html>\n<meta charset="utf-8">\n<title>Long2 Maven Repository</title>\n<h1>Maven Repository</h1>\n<p><a href="com/inf/long2/Long2/">com.inf.long2:Long2</a></p>\n', encoding="utf-8")
+    modules = []
+    for published_metadata in sorted(site.joinpath("maven").rglob("maven-metadata.xml")):
+        published = ET.parse(published_metadata)
+        relative = published_metadata.parent.relative_to(site / "maven").as_posix() + "/"
+        label = html.escape(published.findtext("groupId") + ":" + published.findtext("artifactId"))
+        modules.append((relative, label))
+    repository_links = "\n".join(f'<li><a href="{html.escape(relative)}">{label}</a></li>' for relative, label in modules)
+    site.joinpath("maven/index.html").write_text(
+        '<!doctype html>\n<meta charset="utf-8">\n<title>Long2 Maven Repository</title>\n'
+        f'<h1>Maven Repository</h1>\n<ul>{repository_links}</ul>\n', encoding="utf-8")
     site.joinpath(".nojekyll").write_bytes(b"")
-    site.joinpath("index.html").write_text('<!doctype html>\n<meta charset="utf-8">\n<title>Long2 Maven Repository</title>\n<h1>Long2 Maven Repository</h1>\n<p>Maven repository: <a href="maven/">maven/</a></p>\n<p>Coordinates: <code>com.inf.long2:Long2</code>. Java 25 or newer is required.</p>\n<p><a href="maven/com/inf/long2/Long2/">Available versions</a></p>\n', encoding="utf-8")
+    site_links = "\n".join(f'<li><a href="maven/{html.escape(relative)}">{label}</a></li>' for relative, label in modules)
+    site.joinpath("index.html").write_text(
+        '<!doctype html>\n<meta charset="utf-8">\n<title>Long2 Maven Repository</title>\n'
+        '<h1>Long2 Maven Repository</h1>\n<p>Maven repository: <a href="maven/">maven/</a></p>\n'
+        f'<p>Java 25 or newer is required.</p>\n<ul>{site_links}</ul>\n', encoding="utf-8")
     print(f"Published {group}:{artifact}:{version}; available versions: {', '.join(versions)}")
 
 

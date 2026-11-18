@@ -5,16 +5,16 @@
 
 [如何使用 AP 静态方法实现检查器](docs/using_static_method_implements_check.md)
 
-**转发门面**：[MathCore.java](src/main/java/com/inf/long2/MathCore.java)
+**转发门面**：[MathCore.java](src/main/java/love/crysh/long2/MathCore.java)
 
 **数值类型**：
 
-- [Int256.java](src/main/java/com/inf/long2/ints/Int256.java)
-- [Int512.java](src/main/java/com/inf/long2/ints/Int512.java)
-- [Int1024.java](src/main/java/com/inf/long2/ints/Int1024.java)
-- [Binary256.java](src/main/java/com/inf/long2/binaries/binary256/Binary256.java)
-- [Binary640.java](src/main/java/com/inf/long2/binaries/binary640/Binary640.java)
-- [Binary1280.java](src/main/java/com/inf/long2/binaries/binary1280/Binary1280.java)
+- [Int256.java](src/main/java/love/crysh/long2/ints/Int256.java)
+- [Int512.java](src/main/java/love/crysh/long2/ints/Int512.java)
+- [Int1024.java](src/main/java/love/crysh/long2/ints/Int1024.java)
+- [Binary256.java](src/main/java/love/crysh/long2/binaries/binary256/Binary256.java)
+- [Binary640.java](src/main/java/love/crysh/long2/binaries/binary640/Binary640.java)
+- [Binary1280.java](src/main/java/love/crysh/long2/binaries/binary1280/Binary1280.java)
 
 ## 测试
 

@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <!-- Standalone Maven build, but the source lives inside Long2/ap. -->
-    <groupId>com.inf.long2</groupId>
+    <groupId>love.crysh.long2</groupId>
     <artifactId>int-contract-processor</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>

@@ -3,9 +3,9 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.inf.long2</groupId>
+    <groupId>love.crysh.long2</groupId>
     <artifactId>Long2</artifactId>
-    <version>0.2.1</version>
+    <version>0.2.2</version>
     <packaging>jar</packaging>
 
     <name>Long2</name>
@@ -19,7 +19,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.inf.long2</groupId>
+            <groupId>love.crysh.long2</groupId>
             <artifactId>int-contract-processor</artifactId>
             <version>0.0.1-SNAPSHOT</version>
             <scope>test</scope>
@@ -56,14 +56,14 @@
                     <proc>full</proc>
                     <annotationProcessorPaths>
                         <path>
-                            <groupId>com.inf.long2</groupId>
+                            <groupId>love.crysh.long2</groupId>
                             <artifactId>int-contract-processor</artifactId>
                             <version>0.0.1-SNAPSHOT</version>
                         </path>
                     </annotationProcessorPaths>
                     <annotationProcessors>
                         <annotationProcessor>
-                            com.inf.long2.processor.StaticMethodImplementsCheckProcessor</annotationProcessor>
+                            love.crysh.long2.processor.StaticMethodImplementsCheckProcessor</annotationProcessor>
                     </annotationProcessors>
                 </configuration>
             </plugin>

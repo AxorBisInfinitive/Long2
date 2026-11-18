@@ -123,7 +123,7 @@ def verify():
                 expectations.append(expected(operation, a, b, c))
 
     classpath = os.pathsep.join(str(ROOT / "target" / path) for path in ("test-classes", "classes"))
-    process = subprocess.run(["java", "-cp", classpath, "com.inf.long2.binaries.binary256.Binary256MpfrProbe"],
+    process = subprocess.run(["java", "-cp", classpath, "love.crysh.long2.binaries.binary256.Binary256MpfrProbe"],
                              input="\n".join(requests) + "\n", text=True, capture_output=True, check=True, cwd=ROOT)
     outputs = process.stdout.splitlines()
     assert len(outputs) == len(expectations), process.stderr

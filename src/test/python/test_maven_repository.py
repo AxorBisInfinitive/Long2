@@ -13,14 +13,14 @@ PUBLISHER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(PUBLISHER)
 
 
-def pom(version="0.1.1"):
-    return f'<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>com.inf.long2</groupId><artifactId>Long2</artifactId><version>{version}</version></project>'.encode()
+def pom(version="0.1.1", group="love.crysh.long2"):
+    return f'<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><groupId>{group}</groupId><artifactId>Long2</artifactId><version>{version}</version></project>'.encode()
 
 
-def jar(version="0.1.1"):
+def jar(version="0.1.1", group="love.crysh.long2"):
     data = io.BytesIO()
     with zipfile.ZipFile(data, "w") as archive:
-        archive.writestr("META-INF/maven/com.inf.long2/Long2/pom.properties", f"groupId=com.inf.long2\nartifactId=Long2\nversion={version}\n")
+        archive.writestr(f"META-INF/maven/{group}/Long2/pom.properties", f"groupId={group}\nartifactId=Long2\nversion={version}\n")
     return data.getvalue()
 
 
@@ -37,7 +37,7 @@ class MavenRepositoryTest(unittest.TestCase):
     def test_standard_layout_preserves_release_bytes_and_all_checksums(self):
         binary = jar()
         PUBLISHER.publish(self.site, pom(), binary, b"sources")
-        version = self.site / "maven/com/inf/long2/Long2/0.1.1"
+        version = self.site / "maven/love/crysh/long2/Long2/0.1.1"
         self.assertEqual(binary, (version / "Long2-0.1.1.jar").read_bytes())
         self.assertEqual(pom(), (version / "Long2-0.1.1.pom").read_bytes())
         for path in version.iterdir():
@@ -64,16 +64,39 @@ class MavenRepositoryTest(unittest.TestCase):
         binaries = {version: jar(version) for version in ("0.1.2", "0.1.10", "0.1.3")}
         for version, binary in binaries.items():
             PUBLISHER.publish(self.site, pom(version), binary, b"sources")
-        metadata = ET.parse(self.site / "maven/com/inf/long2/Long2/maven-metadata.xml")
+        metadata = ET.parse(self.site / "maven/love/crysh/long2/Long2/maven-metadata.xml")
         self.assertEqual(["0.1.2", "0.1.3", "0.1.10"], [v.text for v in metadata.findall("versioning/versions/version")])
         self.assertEqual("0.1.10", metadata.findtext("versioning/latest"))
         for version, binary in binaries.items():
-            self.assertEqual(binary, (self.site / f"maven/com/inf/long2/Long2/{version}/Long2-{version}.jar").read_bytes())
+            self.assertEqual(binary, (self.site / f"maven/love/crysh/long2/Long2/{version}/Long2-{version}.jar").read_bytes())
 
     def test_rejects_jar_with_wrong_coordinates(self):
         with self.assertRaisesRegex(ValueError, "coordinates"):
             PUBLISHER.publish(self.site, pom(), jar("0.1.2"), b"sources")
         self.assertEqual({}, self.snapshot())
+
+    def test_namespace_migration_preserves_both_modules_and_repeat_publication(self):
+        old_pom = pom("0.2.1", "com.inf.long2")
+        old_jar = jar("0.2.1", "com.inf.long2")
+        PUBLISHER.publish(self.site, old_pom, old_jar, b"old sources")
+        old_module = self.site / "maven/com/inf/long2/Long2"
+        old_files = {path: path.read_bytes() for path in old_module.rglob("*") if path.is_file()}
+
+        PUBLISHER.publish(self.site, pom("0.2.2"), jar("0.2.2"), b"new sources")
+        self.assertEqual(old_files, {path: path.read_bytes() for path in old_module.rglob("*") if path.is_file()})
+        for group, version in (("com.inf.long2", "0.2.1"), ("love.crysh.long2", "0.2.2")):
+            relative = group.replace(".", "/") + "/Long2/"
+            module = self.site / "maven" / relative
+            metadata = ET.parse(module / "maven-metadata.xml")
+            self.assertEqual(group, metadata.findtext("groupId"))
+            self.assertEqual([version], [v.text for v in metadata.findall("versioning/versions/version")])
+            self.assertIn(f'href="{relative}"', (self.site / "maven/index.html").read_text())
+            self.assertIn(f'href="maven/{relative}"', (self.site / "index.html").read_text())
+
+        before = self.snapshot()
+        PUBLISHER.publish(self.site, old_pom, old_jar, b"old sources")
+        PUBLISHER.publish(self.site, pom("0.2.2"), jar("0.2.2"), b"new sources")
+        self.assertEqual(before, self.snapshot())
 
     def test_rejects_snapshot_and_unsafe_coordinates(self):
         for version in ("../0.1.1", "0.1.1-SNAPSHOT", "0.1.1-rc1", "0.01.1"):
@@ -84,7 +107,7 @@ class MavenRepositoryTest(unittest.TestCase):
 
     def test_metadata_checksums_match(self):
         PUBLISHER.publish(self.site, pom(), jar(), b"sources")
-        path = self.site / "maven/com/inf/long2/Long2/maven-metadata.xml"
+        path = self.site / "maven/love/crysh/long2/Long2/maven-metadata.xml"
         for algorithm in PUBLISHER.CHECKSUMS:
             self.assertEqual(hashlib.new(algorithm, path.read_bytes()).hexdigest(), Path(str(path) + "." + algorithm).read_text().strip())
 
