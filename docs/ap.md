@@ -1,14 +1,16 @@
-# AP 使用说明
+# Annotation Processor 使用说明
 
-在工作目录运行：
+本项目必须使用 Annotation Processor 进行编译。
 
-```sh
+执行命令：
+
+```bash
 mvn -f ap/pom.xml clean install
 ```
 
-之后 Maven 和 Java Language Server 会自动进行检查。若未通过检查，Maven 会编译失败，而 Java Language Server 会在 Problems 中提示问题。
+之后 Maven 和 Java Language Server 会自动检查。
 
-## AP 依赖配置
+## Annotation Processor 依赖配置
 
 ```xml
 <plugin>
