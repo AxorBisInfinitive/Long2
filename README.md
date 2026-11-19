@@ -3,7 +3,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Java 25](https://img.shields.io/badge/Java-25-orange?logo=openjdk&logoColor=white)
 
-**Long2** 是一个 **Java** 库，提供不可变的数值类型。如 [Int](src/main/java/love/crysh/long2/Int.java) 和 [Binary](src/main/java/love/crysh/long2/Binary.java)：
+**Long2** 是一个 **Java** 库，提供不可变的数值类型。
+
+例如 [Int](src/main/java/love/crysh/long2/Int.java) 和 [Binary](src/main/java/love/crysh/long2/Binary.java)：
 
 - [Int256.java](src/main/java/love/crysh/long2/ints/Int256.java) / [Int512.java](src/main/java/love/crysh/long2/ints/Int512.java) / [Int1024.java](src/main/java/love/crysh/long2/ints/Int1024.java)
 - [Binary256.java](src/main/java/love/crysh/long2/binaries/binary256/Binary256.java) / [Binary640.java](src/main/java/love/crysh/long2/binaries/binary640/Binary640.java) / [Binary1280.java](src/main/java/love/crysh/long2/binaries/binary1280/Binary1280.java)
