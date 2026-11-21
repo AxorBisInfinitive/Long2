@@ -394,9 +394,24 @@ public final class UnsignedWords {
     private static long[] normalizedShiftedNumerator(long[] numerator, int shift, int capacity) {
         long[] result = new long[capacity];
         int whole = shift >>> 6;
-        int length = Math.min(capacity, whole + length(numerator) + 1);
-        for (int i = whole; i < length; i++) {
-            result[i] = shiftedWord(numerator, i - whole, shift & 63);
+        int bits = shift & 63;
+        int sourceLength = length(numerator);
+        int count = Math.min(sourceLength, capacity - whole);
+        if (count <= 0) {
+            return result;
+        }
+        if (bits == 0) {
+            System.arraycopy(numerator, 0, result, whole, count);
+            return result;
+        }
+        long carry = 0;
+        for (int i = 0; i < count; i++) {
+            long word = numerator[i];
+            result[whole + i] = (word << bits) | carry;
+            carry = word >>> (64 - bits);
+        }
+        if (whole + count < capacity) {
+            result[whole + count] = carry;
         }
         return result;
     }

@@ -26,7 +26,7 @@ class Binary1280DivisionTest {
         for (int width : new int[] {32, 33, 63, 64, 65, 127, 128, 616, 1252}) {
             BigInteger divisor = new BigInteger(width - 1, random).setBit(width - 1).setBit(0);
             for (BigInteger numerator : new BigInteger[] {ZERO, ONE, divisor.subtract(ONE), divisor, divisor.add(ONE)}) {
-                for (int shift : new int[] {0, 1, 63, 64, 65, 615, 616, 1250, 1251, 1252, 1253, 1279, 1280}) {
+                for (int shift = 0; shift <= 1280; shift++) {
                     long[] a = words(numerator, 2), b = words(divisor, 1);
                     var result = UnsignedWords.divideShifted(a, shift, b);
                     var expected = numerator.shiftLeft(shift).divideAndRemainder(divisor);
