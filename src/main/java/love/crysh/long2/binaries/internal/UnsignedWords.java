@@ -184,12 +184,41 @@ public final class UnsignedWords {
         if (denominatorBits == 616 && (distance == 615 || distance == 616)) {
             return divideWideTenGroups(numerator, denominator);
         }
-        // 单组除数仍走 32 位内核：宽内核的求倒数与规范化开销在单组上不划算。
+        if (denominatorBits == 1252 && (distance == 1251 || distance == 1252)) {
+            return divideWideTwentyGroups(numerator, denominator, 0);
+        }
         if (distance >= 1 && denominatorBits > 64) {
             return divideWide(numerator, denominator, distance, denominatorBits);
         }
+        if (denominatorBits > 32 && denominatorBits <= 64 && distance >= 64) {
+            return divideWideOneGroup(numerator, denominator[0], distance, denominatorBits, 0);
+        }
         long[] quotient = new long[distance / 64 + 1];
         long[] remainder = divideRemainder(numerator, denominator, distance, quotient);
+        return new Division(trim(quotient), remainder);
+    }
+
+    /** 计算 (numerator << shift) / denominator 的商余数，调用方保证 shift 非负。 */
+    public static Division divideShifted(long[] numerator, int shift, long[] denominator) {
+        if (shift == 0) {
+            return divide(numerator, denominator);
+        }
+        int numeratorBits = bitLength(numerator), denominatorBits = bitLength(denominator);
+        int distance = numeratorBits + shift - denominatorBits;
+        if (numeratorBits != 0) {
+            if (denominatorBits == 1252 && (distance == 1251 || distance == 1252)) {
+                return divideWideTwentyGroups(numerator, denominator, shift);
+            }
+            if (denominatorBits > 32 && denominatorBits <= 64 && distance >= 64) {
+                return divideWideOneGroup(numerator, denominator[0], distance, denominatorBits, shift);
+            }
+        }
+        if (numeratorBits == 0 || distance < 1 || denominatorBits <= 64
+                || denominatorBits == 616 && (distance == 615 || distance == 616)) {
+            return divide(left(numerator, shift), denominator);
+        }
+        long[] quotient = new long[distance / 64 + 1];
+        long[] remainder = reduceWide(numerator, denominator, distance, denominatorBits, quotient, shift);
         return new Division(trim(quotient), remainder);
     }
 
@@ -285,6 +314,30 @@ public final class UnsignedWords {
         }
     }
 
+    /** 1252 位除数左移 28 位后占二十个满组，规范化分子不超过 2532 位。 */
+    private static Division divideWideTwentyGroups(long[] numerator, long[] denominator, int numeratorShift) {
+        long[] dividend = numeratorShift == 0 ? normalizedWide(numerator, 40, 28, 40)
+                : normalizedShiftedNumerator(numerator, numeratorShift + 28, 40);
+        long[] divisor = normalizedWide(denominator, 20, 28, 20);
+        long[] quotient = new long[20];
+        long top = divisor[19], second = divisor[18];
+        long reciprocal = wideReciprocal(top);
+        for (int j = 19; j >= 0; j--) {
+            long estimate = trialQuotient(dividend[j + 20], dividend[j + 19], dividend[j + 18], top, second, reciprocal);
+            if (estimate != 0 && subtractProductWide(dividend, j, divisor, estimate, 20)) {
+                estimate--;
+                addBackWide(dividend, j, divisor, 20);
+            }
+            quotient[j] = estimate;
+        }
+        long[] remainder = new long[20];
+        for (int i = 0; i < 19; i++) {
+            remainder[i] = (dividend[i] >>> 28) | (dividend[i + 1] << 36);
+        }
+        remainder[19] = dividend[19] >>> 28;
+        return new Division(trim(quotient), trim(remainder));
+    }
+
     /**
      * 除数多于一组，分子位长比除数多 distance 位。组数与移位由位长决定，带高零组的输入同样成立。
      * 规范化后除数恰好填满 groups 组，商至多 {@code distance / 64 + 1} 组。
@@ -297,12 +350,19 @@ public final class UnsignedWords {
 
     private static long[] reduceWide(long[] numerator, long[] denominator, int distance,
             int denominatorBits, long[] quotient) {
+        return reduceWide(numerator, denominator, distance, denominatorBits, quotient, 0);
+    }
+
+    private static long[] reduceWide(long[] numerator, long[] denominator, int distance,
+            int denominatorBits, long[] quotient, int numeratorShift) {
         int groups = (denominatorBits + 63) / 64;
         int shift = groups * 64 - denominatorBits;
         int quotientGroups = distance / 64 + 1;
         int numeratorGroups = (denominatorBits + distance + 63) / 64;
         long[] divisor = normalizedWide(denominator, groups, shift, groups);
-        long[] dividend = normalizedWide(numerator, numeratorGroups, shift, quotientGroups + groups + 1);
+        int capacity = quotientGroups + groups + 1;
+        long[] dividend = numeratorShift == 0 ? normalizedWide(numerator, numeratorGroups, shift, capacity)
+                : normalizedShiftedNumerator(numerator, numeratorShift + shift, capacity);
         long top = divisor[groups - 1], second = divisor[groups - 2];
         long reciprocal = wideReciprocal(top);
         // 最高 groups 组小于除数，商在更高位为零，直接从最高商组开始。
@@ -328,6 +388,17 @@ public final class UnsignedWords {
             remainder[groups - 1] = dividend[groups - 1] >>> shift;
         }
         return trim(remainder);
+    }
+
+    /** 分子已知要左移，再合并除数的规范化位移，直接写入除法工作区。 */
+    private static long[] normalizedShiftedNumerator(long[] numerator, int shift, int capacity) {
+        long[] result = new long[capacity];
+        int whole = shift >>> 6;
+        int length = Math.min(capacity, whole + length(numerator) + 1);
+        for (int i = whole; i < length; i++) {
+            result[i] = shiftedWord(numerator, i - whole, shift & 63);
+        }
+        return result;
     }
 
     /**
@@ -512,6 +583,36 @@ public final class UnsignedWords {
             }
         }
         return remainder == 0 ? new long[0] : new long[] {remainder};
+    }
+
+    /** 单组除数只需 2/1 估商修正。合并对齐与规范化位移，逐组读取分子。 */
+    private static Division divideWideOneGroup(long[] numerator, long divisor, int distance,
+            int denominatorBits, int numeratorShift) {
+        int shift = 64 - denominatorBits;
+        int combinedShift = numeratorShift + shift;
+        int whole = combinedShift >>> 6, bits = combinedShift & 63;
+        long normalized = divisor << shift;
+        long reciprocal = wideReciprocal(normalized);
+        long[] quotient = new long[distance / 64 + 1];
+        long remainder = shiftedWord(numerator, quotient.length - whole, bits);
+        for (int i = quotient.length - 1; i >= 0; i--) {
+            long next = shiftedWord(numerator, i - whole, bits);
+            long product = remainder * reciprocal;
+            long fraction = product + next;
+            long carry = Long.compareUnsigned(fraction, product) < 0 ? 1L : 0L;
+            long estimate = Math.unsignedMultiplyHigh(remainder, reciprocal) + remainder + carry + 1;
+            remainder = next - estimate * normalized;
+            if (Long.compareUnsigned(remainder, fraction) > 0) {
+                estimate--;
+                remainder += normalized;
+            }
+            if (Long.compareUnsigned(remainder, normalized) >= 0) {
+                estimate++;
+                remainder -= normalized;
+            }
+            quotient[i] = estimate;
+        }
+        return new Division(trim(quotient), remainder == 0 ? new long[0] : new long[] {remainder >>> shift});
     }
 
     private static int digit(long[] value, int index) {

@@ -86,15 +86,17 @@ final class Binary1280Rounding {
         }
         long quantum = Math.max(exponent - FRACTION_BITS, QMIN);
         long shift = scale - quantum;
+        UnsignedWords.Division division;
         if (shift >= 0) {
-            numerator = UnsignedWords.left(numerator, Math.toIntExact(shift));
+            division = UnsignedWords.divideShifted(numerator, Math.toIntExact(shift), denominator);
         } else {
             denominator = UnsignedWords.left(denominator, Math.toIntExact(-shift));
+            division = UnsignedWords.divide(numerator, denominator);
         }
-        UnsignedWords.Division division = UnsignedWords.divide(numerator, denominator);
         int half = -UnsignedWords.compareShifted(denominator, division.remainder(), 1);
-        return packRounded(negative, Arrays.copyOf(division.quotient(), WORDS), quantum,
-                half > 0 || half == 0 && UnsignedWords.bit(division.quotient(), 0));
+        long[] quotient = division.quotient();
+        return packRounded(negative, quotient.length == WORDS ? quotient : Arrays.copyOf(quotient, WORDS), quantum,
+                half > 0 || half == 0 && UnsignedWords.bit(quotient, 0));
     }
 
     /** kept 独占且恰好二十组，有效数字至多 1252 位。舍入与归一化在最终位权完成。 */

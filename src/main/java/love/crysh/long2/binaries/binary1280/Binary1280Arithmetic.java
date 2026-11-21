@@ -784,6 +784,9 @@ final class Binary1280Arithmetic {
     }
 
     private static long[] removeLowZeros(long[] magnitude, int zeros) {
+        if (zeros == 0) {
+            return magnitude;
+        }
         int bits = UnsignedWords.bitLength(magnitude) - zeros;
         long[] compact = new long[(bits + 63) / 64];
         for (int i = 0; i < compact.length; i++) {
